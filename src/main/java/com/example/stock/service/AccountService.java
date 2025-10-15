@@ -6,22 +6,28 @@ import com.example.stock.exception.InvalidTradeException;
 import com.example.stock.model.Account;
 import com.example.stock.model.Holding;
 import com.example.stock.model.TradeSide;
+import com.example.stock.repository.AccountRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
-import java.util.Map;
+import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * アカウントおよび取引を管理するサービス層です。
  */
 @Service
+@Transactional
 public class AccountService {
     private static final MathContext MATH_CONTEXT = new MathContext(12, RoundingMode.HALF_UP);
-    private final Map<UUID, Account> accounts = new ConcurrentHashMap<>();
+    private final AccountRepository accountRepository;
+
+    public AccountService(AccountRepository accountRepository) {
+        this.accountRepository = accountRepository;
+    }
 
     /**
      * 新しいアカウントを作成します。
@@ -32,9 +38,8 @@ public class AccountService {
      */
     public Account createAccount(String ownerName, BigDecimal initialDeposit) {
         BigDecimal startingBalance = initialDeposit == null ? BigDecimal.ZERO : initialDeposit;
-        Account account = new Account(UUID.randomUUID(), ownerName, startingBalance);
-        accounts.put(account.getId(), account);
-        return account;
+        Account account = new Account(ownerName, startingBalance);
+        return accountRepository.save(account);
     }
 
     /**
@@ -44,12 +49,20 @@ public class AccountService {
      * @return 該当アカウント
      * @throws AccountNotFoundException アカウントが存在しない場合
      */
+    @Transactional(readOnly = true)
     public Account getAccount(UUID id) {
-        Account account = accounts.get(id);
-        if (account == null) {
-            throw new AccountNotFoundException(id);
-        }
-        return account;
+        return accountRepository.findById(id)
+                .orElseThrow(() -> new AccountNotFoundException(id));
+    }
+
+    /**
+     * 登録されているすべてのアカウントを取得します。
+     *
+     * @return アカウント一覧
+     */
+    @Transactional(readOnly = true)
+    public List<Account> getAccounts() {
+        return accountRepository.findAll();
     }
 
     /**
@@ -60,11 +73,9 @@ public class AccountService {
      * @return 更新後のアカウント
      */
     public Account deposit(UUID id, BigDecimal amount) {
-        Account account = getAccount(id);
-        synchronized (account) {
-            account.setCashBalance(account.getCashBalance().add(amount, MATH_CONTEXT));
-            return account;
-        }
+        Account account = loadAccount(id);
+        account.setCashBalance(account.getCashBalance().add(amount, MATH_CONTEXT));
+        return accountRepository.save(account);
     }
 
     /**
@@ -76,14 +87,12 @@ public class AccountService {
      * @throws InsufficientFundsException 残高が不足している場合
      */
     public Account withdraw(UUID id, BigDecimal amount) {
-        Account account = getAccount(id);
-        synchronized (account) {
-            if (account.getCashBalance().compareTo(amount) < 0) {
-                throw new InsufficientFundsException(id, amount, account.getCashBalance());
-            }
-            account.setCashBalance(account.getCashBalance().subtract(amount, MATH_CONTEXT));
-            return account;
+        Account account = loadAccount(id);
+        if (account.getCashBalance().compareTo(amount) < 0) {
+            throw new InsufficientFundsException(id, amount, account.getCashBalance());
         }
+        account.setCashBalance(account.getCashBalance().subtract(amount, MATH_CONTEXT));
+        return accountRepository.save(account);
     }
 
     /**
@@ -104,46 +113,49 @@ public class AccountService {
         if (quantity.signum() <= 0 || pricePerShare.signum() <= 0) {
             throw new InvalidTradeException("Quantity and price must be positive");
         }
-        Account account = getAccount(id);
-        synchronized (account) {
-            BigDecimal grossAmount = pricePerShare.multiply(quantity, MATH_CONTEXT);
-            Map<String, Holding> holdings = account.getHoldingsInternal();
-            String key = symbol.toUpperCase();
-            Holding existing = holdings.get(key);
+        Account account = loadAccount(id);
+        BigDecimal grossAmount = pricePerShare.multiply(quantity, MATH_CONTEXT);
+        String key = symbol.toUpperCase();
+        Holding existing = account.findHolding(key).orElse(null);
 
-            if (side == TradeSide.BUY) {
-                if (account.getCashBalance().compareTo(grossAmount) < 0) {
-                    throw new InsufficientFundsException(id, grossAmount, account.getCashBalance());
-                }
-                account.setCashBalance(account.getCashBalance().subtract(grossAmount, MATH_CONTEXT));
-                if (existing == null) {
-                    existing = new Holding(key, exchange, quantity, pricePerShare);
-                    holdings.put(key, existing);
-                } else {
-                    BigDecimal currentQuantity = existing.getQuantity();
-                    BigDecimal newQuantity = currentQuantity.add(quantity, MATH_CONTEXT);
-                    BigDecimal totalCost = existing.getAverageCost().multiply(currentQuantity, MATH_CONTEXT)
-                            .add(pricePerShare.multiply(quantity, MATH_CONTEXT), MATH_CONTEXT);
-                    BigDecimal newAverageCost = totalCost.divide(newQuantity, MATH_CONTEXT);
-                    existing.setQuantity(newQuantity);
-                    existing.setAverageCost(newAverageCost);
-                }
-            } else {
-                if (existing == null) {
-                    throw new InvalidTradeException("Cannot sell holdings that do not exist");
-                }
-                if (existing.getQuantity().compareTo(quantity) < 0) {
-                    throw new InvalidTradeException("Cannot sell more than the available quantity");
-                }
-                BigDecimal newQuantity = existing.getQuantity().subtract(quantity, MATH_CONTEXT);
-                account.setCashBalance(account.getCashBalance().add(grossAmount, MATH_CONTEXT));
-                if (newQuantity.signum() == 0) {
-                    holdings.remove(key);
-                } else {
-                    existing.setQuantity(newQuantity);
-                }
+        if (side == TradeSide.BUY) {
+            if (account.getCashBalance().compareTo(grossAmount) < 0) {
+                throw new InsufficientFundsException(id, grossAmount, account.getCashBalance());
             }
-            return account;
+            account.setCashBalance(account.getCashBalance().subtract(grossAmount, MATH_CONTEXT));
+            if (existing == null) {
+                Holding newHolding = new Holding(key, exchange, quantity, pricePerShare);
+                account.addHolding(newHolding);
+            } else {
+                BigDecimal currentQuantity = existing.getQuantity();
+                BigDecimal newQuantity = currentQuantity.add(quantity, MATH_CONTEXT);
+                BigDecimal totalCost = existing.getAverageCost().multiply(currentQuantity, MATH_CONTEXT)
+                        .add(pricePerShare.multiply(quantity, MATH_CONTEXT), MATH_CONTEXT);
+                BigDecimal newAverageCost = totalCost.divide(newQuantity, MATH_CONTEXT);
+                existing.setQuantity(newQuantity);
+                existing.setAverageCost(newAverageCost);
+                existing.setExchange(exchange);
+            }
+        } else {
+            if (existing == null) {
+                throw new InvalidTradeException("Cannot sell holdings that do not exist");
+            }
+            if (existing.getQuantity().compareTo(quantity) < 0) {
+                throw new InvalidTradeException("Cannot sell more than the available quantity");
+            }
+            BigDecimal newQuantity = existing.getQuantity().subtract(quantity, MATH_CONTEXT);
+            account.setCashBalance(account.getCashBalance().add(grossAmount, MATH_CONTEXT));
+            if (newQuantity.signum() == 0) {
+                account.removeHolding(existing);
+            } else {
+                existing.setQuantity(newQuantity);
+            }
         }
+        return accountRepository.save(account);
+    }
+
+    private Account loadAccount(UUID id) {
+        return accountRepository.findById(id)
+                .orElseThrow(() -> new AccountNotFoundException(id));
     }
 }

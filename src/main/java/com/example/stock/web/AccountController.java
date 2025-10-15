@@ -42,6 +42,18 @@ public class AccountController {
     }
 
     /**
+     * 登録済みのアカウントを一覧取得します。
+     *
+     * @return アカウント要約のリスト
+     */
+    @GetMapping
+    public List<AccountSummary> listAccounts() {
+        return accountService.getAccounts().stream()
+                .map(this::toSummary)
+                .toList();
+    }
+
+    /**
      * 新しいアカウントを作成します。
      *
      * @param request 作成リクエスト
@@ -111,7 +123,7 @@ public class AccountController {
      * @return アカウントの要約
      */
     private AccountSummary toSummary(Account account) {
-        List<HoldingView> holdings = account.getHoldings().values().stream()
+        List<HoldingView> holdings = account.getHoldings().stream()
                 .map(holding -> new HoldingView(holding.getSymbol(), holding.getExchange(),
                         holding.getQuantity(), holding.getAverageCost()))
                 .toList();
