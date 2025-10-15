@@ -1,36 +1,75 @@
 package com.example.stock.model;
 
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderBy;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
+
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
  * 外国株式取引のためのアカウント情報を保持するモデルです。
  */
+@Entity
+@Table(name = "accounts")
 public class Account {
-    private final UUID id;
-    private final String ownerName;
-    private BigDecimal cashBalance;
-    private final Map<String, Holding> holdings;
-    private final Instant createdAt;
+    @Id
+    @Column(name = "id", columnDefinition = "TEXT")
+    private UUID id;
+
+    @Column(name = "owner_name", nullable = false)
+    private String ownerName;
+
+    @Column(name = "cash_balance", precision = 19, scale = 4, nullable = false)
+    private BigDecimal cashBalance = BigDecimal.ZERO;
+
+    @OneToMany(mappedBy = "account", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @OrderBy("symbol ASC")
+    private List<Holding> holdings = new ArrayList<>();
+
+    @Column(name = "created_at", nullable = false)
+    private Instant createdAt;
+
+    protected Account() {
+        // JPA 用のデフォルトコンストラクタ
+    }
 
     /**
      * アカウントを生成します。
      *
-     * @param id アカウント識別子
      * @param ownerName 口座名義
      * @param initialBalance 初期残高
      */
-    public Account(UUID id, String ownerName, BigDecimal initialBalance) {
-        this.id = Objects.requireNonNull(id, "id");
+    public Account(String ownerName, BigDecimal initialBalance) {
+        this.id = UUID.randomUUID();
         this.ownerName = Objects.requireNonNull(ownerName, "ownerName");
-        this.cashBalance = initialBalance;
-        this.holdings = new LinkedHashMap<>();
+        this.cashBalance = initialBalance == null ? BigDecimal.ZERO : initialBalance;
         this.createdAt = Instant.now();
+    }
+
+    @PrePersist
+    void initialize() {
+        if (id == null) {
+            id = UUID.randomUUID();
+        }
+        if (createdAt == null) {
+            createdAt = Instant.now();
+        }
+        if (cashBalance == null) {
+            cashBalance = BigDecimal.ZERO;
+        }
     }
 
     /**
@@ -70,21 +109,44 @@ public class Account {
     }
 
     /**
-     * 保有銘柄の読み取り専用マップを取得します。
+     * 保有銘柄の読み取り専用リストを取得します。
      *
      * @return 保有銘柄情報
      */
-    public Map<String, Holding> getHoldings() {
-        return Collections.unmodifiableMap(holdings);
+    public List<Holding> getHoldings() {
+        return Collections.unmodifiableList(holdings);
     }
 
     /**
-     * ミューテーションを許可する保有銘柄マップを返します。
+     * 取引所持銘柄を追加します。
      *
-     * @return 編集可能な保有銘柄マップ
+     * @param holding 追加するホールディング
      */
-    public Map<String, Holding> getHoldingsInternal() {
-        return holdings;
+    public void addHolding(Holding holding) {
+        holding.setAccount(this);
+        holdings.add(holding);
+    }
+
+    /**
+     * 指定したホールディングを削除します。
+     *
+     * @param holding 削除対象のホールディング
+     */
+    public void removeHolding(Holding holding) {
+        holdings.remove(holding);
+        holding.setAccount(null);
+    }
+
+    /**
+     * 指定銘柄の保有情報を取得します。
+     *
+     * @param symbol 銘柄コード
+     * @return 該当する保有情報
+     */
+    public Optional<Holding> findHolding(String symbol) {
+        return holdings.stream()
+                .filter(holding -> holding.getSymbol().equalsIgnoreCase(symbol))
+                .findFirst();
     }
 
     /**

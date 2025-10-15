@@ -1,30 +1,66 @@
 package com.example.stock.model;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+
 import java.math.BigDecimal;
 import java.util.Objects;
 
 /**
- * 保有している銘柄情報を表すモデルです。
+ * アカウントが保有する銘柄を表すモデルです。
  */
+@Entity
+@Table(name = "holdings")
 public class Holding {
-    private final String symbol;
-    private final String exchange;
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "symbol", nullable = false)
+    private String symbol;
+
+    @Column(name = "exchange", nullable = false)
+    private String exchange;
+
+    @Column(name = "quantity", precision = 19, scale = 6, nullable = false)
     private BigDecimal quantity;
+
+    @Column(name = "average_cost", precision = 19, scale = 6, nullable = false)
     private BigDecimal averageCost;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "account_id", nullable = false, columnDefinition = "TEXT")
+    private Account account;
+
+    protected Holding() {
+        // JPA 用のデフォルトコンストラクタ
+    }
+
     /**
-     * 保有銘柄情報を生成します。
+     * 保有銘柄を生成します。
      *
      * @param symbol 銘柄コード
-     * @param exchange 上場市場
+     * @param exchange 取引市場
      * @param quantity 保有数量
      * @param averageCost 平均取得単価
      */
     public Holding(String symbol, String exchange, BigDecimal quantity, BigDecimal averageCost) {
-        this.symbol = Objects.requireNonNull(symbol, "symbol");
+        this.symbol = Objects.requireNonNull(symbol, "symbol").toUpperCase();
         this.exchange = Objects.requireNonNull(exchange, "exchange");
         this.quantity = quantity;
         this.averageCost = averageCost;
+    }
+
+    public Long getId() {
+        return id;
     }
 
     /**
@@ -36,13 +72,21 @@ public class Holding {
         return symbol;
     }
 
+    public void setSymbol(String symbol) {
+        this.symbol = Objects.requireNonNull(symbol, "symbol").toUpperCase();
+    }
+
     /**
-     * 上場市場を取得します。
+     * 取引市場を取得します。
      *
-     * @return 上場市場
+     * @return 取引市場
      */
     public String getExchange() {
         return exchange;
+    }
+
+    public void setExchange(String exchange) {
+        this.exchange = Objects.requireNonNull(exchange, "exchange");
     }
 
     /**
@@ -75,9 +119,17 @@ public class Holding {
     /**
      * 平均取得単価を設定します。
      *
-     * @param averageCost 設定する平均取得単価
+     * @param averageCost 設定する平均単価
      */
     public void setAverageCost(BigDecimal averageCost) {
         this.averageCost = averageCost;
+    }
+
+    public Account getAccount() {
+        return account;
+    }
+
+    public void setAccount(Account account) {
+        this.account = account;
     }
 }

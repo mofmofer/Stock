@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>口座管理ダッシュボード</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            color-scheme: light dark;
+            font-size: 16px;
+            --bg: radial-gradient(circle at top left, #f4f7ff, #eef1ff 40%, #f8f8f8 100%);
+            --card-bg: rgba(255, 255, 255, 0.85);
+            --text: #1f2544;
+            --muted: #626b8a;
+            --border: rgba(36, 54, 163, 0.15);
+            --accent: #2436a3;
+            --danger: #c94a4a;
+        }
+
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: 'Noto Sans JP', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            padding: 3rem 1.5rem 4rem;
+        }
+
+        header {
+            max-width: 960px;
+            margin: 0 auto 2rem;
+            text-align: center;
+        }
+
+        header h1 {
+            margin: 0 0 0.75rem;
+            font-size: clamp(1.9rem, 4vw, 2.8rem);
+            font-weight: 700;
+        }
+
+        header p {
+            margin: 0;
+            color: var(--muted);
+            line-height: 1.6;
+        }
+
+        main {
+            max-width: 960px;
+            margin: 0 auto;
+            background: var(--card-bg);
+            border-radius: 18px;
+            padding: 1.75rem;
+            border: 1px solid var(--border);
+            box-shadow: 0 18px 40px rgba(17, 23, 65, 0.08);
+            backdrop-filter: blur(10px);
+        }
+
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-bottom: 1.5rem;
+        }
+
+        button {
+            border: none;
+            border-radius: 999px;
+            padding: 0.65rem 1.4rem;
+            font-size: 0.95rem;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            background: var(--accent);
+            color: #fff;
+            transition: transform 0.12s ease, box-shadow 0.12s ease;
+        }
+
+        button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 12px 22px rgba(36, 54, 163, 0.25);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            border-radius: 14px;
+            overflow: hidden;
+        }
+
+        thead {
+            background: rgba(36, 54, 163, 0.08);
+        }
+
+        th, td {
+            padding: 0.85rem 1rem;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        tbody tr:nth-child(odd) {
+            background: rgba(31, 37, 68, 0.04);
+        }
+
+        .holdings {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .holding-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.4rem 0.65rem;
+            border-radius: 999px;
+            background: rgba(36, 54, 163, 0.1);
+            color: var(--accent);
+            font-size: 0.85rem;
+        }
+
+        .empty {
+            color: var(--muted);
+            font-style: italic;
+        }
+
+        .updated-at {
+            font-size: 0.85rem;
+            color: var(--muted);
+        }
+
+        @media (max-width: 720px) {
+            main {
+                padding: 1.25rem;
+            }
+
+            table {
+                display: block;
+                overflow-x: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+<header>
+    <h1>口座管理ダッシュボード</h1>
+    <p>API 経由で登録された口座と現金残高、保有ポジションをひと目で確認できます。</p>
+</header>
+<main>
+    <div class="toolbar">
+        <div class="updated-at" id="updatedAt">読み込み中...</div>
+        <button id="refreshButton">最新の状態に更新</button>
+    </div>
+    <div class="table-wrapper">
+        <table>
+            <thead>
+            <tr>
+                <th>口座 ID</th>
+                <th>名義</th>
+                <th>現金残高 (USD)</th>
+                <th>保有ポジション</th>
+            </tr>
+            </thead>
+            <tbody id="accountTableBody">
+            <tr>
+                <td colspan="4" class="empty">口座情報を取得しています...</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</main>
+<script>
+    async function loadAccounts() {
+        setLoading(true);
+        try {
+            const response = await fetch('/api/accounts');
+            if (!response.ok) {
+                throw new Error(await response.text() || response.statusText);
+            }
+            const accounts = await response.json();
+            renderAccounts(accounts);
+        } catch (error) {
+            renderError(error.message);
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    function renderAccounts(accounts) {
+        const tbody = document.getElementById('accountTableBody');
+        tbody.innerHTML = '';
+        if (!accounts.length) {
+            const row = document.createElement('tr');
+            row.innerHTML = '<td colspan="4" class="empty">登録済みの口座はまだありません。</td>';
+            tbody.appendChild(row);
+        } else {
+            for (const account of accounts) {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td><code>${account.id}</code></td>
+                    <td>${escapeHtml(account.ownerName)}</td>
+                    <td>${formatCurrency(account.cashBalance)}</td>
+                    <td>${renderHoldings(account.holdings)}</td>
+                `;
+                tbody.appendChild(row);
+            }
+        }
+        const updatedAt = new Date();
+        document.getElementById('updatedAt').textContent = `最終更新: ${updatedAt.toLocaleString('ja-JP')}`;
+    }
+
+    function renderHoldings(holdings) {
+        if (!holdings || !holdings.length) {
+            return '<span class="empty">保有なし</span>';
+        }
+        return `<div class="holdings">${holdings.map(h => {
+            const qty = Number(h.quantity).toLocaleString('en-US');
+            const avg = Number(h.averageCost).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+            return `<span class="holding-chip"><strong>${escapeHtml(h.symbol)}</strong>@${escapeHtml(h.exchange)} / ${qty} 株 @ $${avg}</span>`;
+        }).join('')}</div>`;
+    }
+
+    function formatCurrency(value) {
+        const number = Number(value ?? 0);
+        return number.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+    }
+
+    function renderError(message) {
+        const tbody = document.getElementById('accountTableBody');
+        tbody.innerHTML = `<tr><td colspan="4" class="empty">エラーが発生しました: ${escapeHtml(message)}</td></tr>`;
+        document.getElementById('updatedAt').textContent = '最新情報を取得できませんでした';
+    }
+
+    function setLoading(isLoading) {
+        const button = document.getElementById('refreshButton');
+        button.disabled = isLoading;
+        button.textContent = isLoading ? '更新中...' : '最新の状態に更新';
+    }
+
+    function escapeHtml(text = '') {
+        const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+        return text.replace(/[&<>"']/g, (m) => map[m]);
+    }
+
+    document.getElementById('refreshButton').addEventListener('click', loadAccounts);
+    loadAccounts();
+</script>
+</body>
+</html>
