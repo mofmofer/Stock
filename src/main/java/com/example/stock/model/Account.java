@@ -44,8 +44,8 @@ public class Account {
     private Instant createdAt;
 
     @Version
-    @Column(name = "version", nullable = false)
-    private long version;
+    @Column(name = "version")
+    private Long version;
 
     protected Account() {
         // JPA 用のデフォルトコンストラクタ
