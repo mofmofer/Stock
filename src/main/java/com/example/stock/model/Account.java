@@ -163,7 +163,7 @@ public class Account {
         return createdAt;
     }
 
-    public long getVersion() {
+    public Long getVersion() {
         return version;
     }
 }
