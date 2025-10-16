@@ -1,12 +1,14 @@
 package com.example.stock.web;
 
 import com.example.stock.model.Account;
+import com.example.stock.model.Transaction;
 import com.example.stock.service.AccountService;
 import com.example.stock.web.dto.AccountSummary;
 import com.example.stock.web.dto.CashTransferRequest;
 import com.example.stock.web.dto.CreateAccountRequest;
 import com.example.stock.web.dto.HoldingView;
 import com.example.stock.web.dto.TradeRequest;
+import com.example.stock.web.dto.TransactionView;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
@@ -79,6 +81,19 @@ public class AccountController {
     }
 
     /**
+     * 指定アカウントのトランザクション履歴を取得します。
+     *
+     * @param id アカウント識別子
+     * @return トランザクション一覧
+     */
+    @GetMapping("/{id}/transactions")
+    public List<TransactionView> getTransactions(@PathVariable UUID id) {
+        return accountService.getTransactions(id).stream()
+                .map(this::toTransactionView)
+                .toList();
+    }
+
+    /**
      * 指定アカウントに入金します。
      *
      * @param id アカウント識別子
@@ -129,5 +144,12 @@ public class AccountController {
                 .toList();
         return new AccountSummary(account.getId(), account.getOwnerName(), account.getCashBalance(), holdings,
                 account.getCreatedAt());
+    }
+
+    private TransactionView toTransactionView(Transaction transaction) {
+        return new TransactionView(transaction.getId(), transaction.getType(), transaction.getTradeSide(),
+                transaction.getSymbol(), transaction.getExchange(), transaction.getQuantity(),
+                transaction.getPricePerShare(), transaction.getCashAmount(), transaction.getGrossAmount(),
+                transaction.getCashBalanceAfter(), transaction.getOccurredAt());
     }
 }
