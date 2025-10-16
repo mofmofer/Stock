@@ -487,9 +487,17 @@
         return Number.NaN;
     }
 
+    function getTrimmedValue(id) {
+        const element = document.getElementById(id);
+        if (!element) {
+            return '';
+        }
+        return (element.value || '').trim();
+    }
+
     async function createAccount() {
         const payload = {
-            ownerName: document.getElementById('ownerName').value,
+            ownerName: getTrimmedValue('ownerName'),
             initialDeposit: parseFloat(document.getElementById('initialDeposit').value || '0')
         };
         try {
@@ -514,14 +522,15 @@
     }
 
     async function cashOperation(type) {
-        const accountId = document.getElementById('cashAccountId').value;
+        const accountId = getTrimmedValue('cashAccountId');
         const amount = parseFloat(document.getElementById('cashAmount').value || '0');
         if (!accountId) {
             setOutput('エラー: 口座 ID を入力してください。');
             return;
         }
         try {
-            const result = await request(`/api/accounts/${accountId}/${type}`, {
+            const encodedId = encodeURIComponent(accountId);
+            const result = await request(`/api/accounts/${encodedId}/${type}`, {
                 method: 'POST',
                 body: JSON.stringify({ amount })
             });
@@ -533,7 +542,7 @@
     }
 
     async function trade() {
-        const accountId = document.getElementById('tradeAccountId').value;
+        const accountId = getTrimmedValue('tradeAccountId');
         if (!accountId) {
             setOutput('エラー: 口座 ID を入力してください。');
             return;
@@ -546,7 +555,8 @@
             pricePerShare: parseFloat(document.getElementById('tradePrice').value || '0')
         };
         try {
-            const result = await request(`/api/accounts/${accountId}/trade`, {
+            const encodedId = encodeURIComponent(accountId);
+            const result = await request(`/api/accounts/${encodedId}/trade`, {
                 method: 'POST',
                 body: JSON.stringify(payload)
             });
@@ -558,13 +568,13 @@
     }
 
     async function fetchAccount() {
-        const accountId = document.getElementById('snapshotAccountId').value;
+        const accountId = getTrimmedValue('snapshotAccountId');
         if (!accountId) {
             setOutput('エラー: 口座 ID を入力してください。');
             return;
         }
         try {
-            const result = await request(`/api/accounts/${accountId}`);
+            const result = await request(`/api/accounts/${encodeURIComponent(accountId)}`);
             setOutput(result);
             await updateHistoryTable(accountId);
         } catch (err) {
@@ -573,7 +583,7 @@
     }
 
     async function fetchTransactions() {
-        const accountId = document.getElementById('historyAccountId').value;
+        const accountId = getTrimmedValue('historyAccountId');
         if (!accountId) {
             setOutput('エラー: 口座 ID を入力してください。');
             return;
@@ -590,7 +600,7 @@
             historyInput.value = accountId;
         }
         try {
-            const transactions = await request(`/api/accounts/${accountId}/transactions`);
+            const transactions = await request(`/api/accounts/${encodeURIComponent(accountId)}/transactions`);
             renderTransactions(transactions);
             if (updateOutput) {
                 setOutput(transactions);
