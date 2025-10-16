@@ -3,21 +3,47 @@ package com.example.stock.service;
 import com.example.stock.exception.InsufficientFundsException;
 import com.example.stock.exception.InvalidTradeException;
 import com.example.stock.model.Account;
+import com.example.stock.model.Holding;
 import com.example.stock.model.TradeSide;
+import com.example.stock.repository.AccountRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.stubbing.Answer;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
 
 class AccountServiceTest {
 
+    private AccountRepository accountRepository;
     private AccountService accountService;
+    private Map<UUID, Account> store;
 
     @BeforeEach
     void setUp() {
-        accountService = new AccountService();
+        store = new HashMap<>();
+        accountRepository = mock(AccountRepository.class);
+        accountService = new AccountService(accountRepository);
+
+        Answer<Account> saveAnswer = invocation -> {
+            Account account = invocation.getArgument(0);
+            store.put(account.getId(), account);
+            return account;
+        };
+        lenient().when(accountRepository.save(any(Account.class))).thenAnswer(saveAnswer);
+        lenient().when(accountRepository.findById(any(UUID.class)))
+                .thenAnswer(invocation -> Optional.ofNullable(store.get(invocation.getArgument(0))));
+        lenient().when(accountRepository.findAll())
+                .thenAnswer(invocation -> new ArrayList<>(store.values()));
     }
 
     @Test
@@ -35,8 +61,9 @@ class AccountServiceTest {
 
         Account updated = accountService.getAccount(account.getId());
         assertEquals(new BigDecimal("10000").subtract(new BigDecimal("950")), updated.getCashBalance());
-        assertTrue(updated.getHoldings().containsKey("SONY"));
-        assertEquals(new BigDecimal("10"), updated.getHoldings().get("SONY").getQuantity());
+        Optional<Holding> sonyHolding = updated.findHolding("SONY");
+        assertTrue(sonyHolding.isPresent());
+        assertEquals(new BigDecimal("10"), sonyHolding.get().getQuantity());
     }
 
     @Test
@@ -47,7 +74,9 @@ class AccountServiceTest {
 
         Account updated = accountService.getAccount(account.getId());
         assertEquals(new BigDecimal("5000").subtract(new BigDecimal("500")).add(new BigDecimal("360")), updated.getCashBalance());
-        assertEquals(new BigDecimal("2"), updated.getHoldings().get("TSM").getQuantity());
+        Optional<Holding> tsmHolding = updated.findHolding("TSM");
+        assertTrue(tsmHolding.isPresent());
+        assertEquals(new BigDecimal("2"), tsmHolding.get().getQuantity());
     }
 
     @Test
