@@ -40,7 +40,8 @@ mvn test
 1. GitHub リポジトリで Codespace を作成し、VS Code またはブラウザ版エディタで開きます。
 2. ターミナルで上記と同じ手順で `mvn spring-boot:run` を実行します。
 3. Codespaces の Ports タブで 8080 番ポートを **Public** に変更すると、共有可能な https URL が払い出されます。スマホのブラウザからその URL（例: `https://<hash>-8080.app.github.dev/index.html`）へアクセスすると、PC と同じ UI を操作できます。
-4. 公開した URL は認証付きですが、必要に応じてアクセス権を制限し、不要になったら Codespace を停止または削除します。
+4. 公開した URL は **認証なし** で誰でもアクセス可能になるため、実運用する場合は Codespaces のポートを **Private** のまま共有し、
+   追加の認証や VPN 等を組み合わせてアクセス制御を行ってください。不要になったら Codespace を停止または削除します。
 
 ### GitHub Actions + コンテナレジストリ + AWS App Runner
 1. プロジェクトルートに Dockerfile を追加し、Spring Boot アプリをコンテナ化します（マルチステージビルドで `mvn -Pproduction package` などを実行し、`java -jar target/*.jar` で起動するイメージを作成）。
