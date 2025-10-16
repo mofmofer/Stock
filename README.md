@@ -1,51 +1,51 @@
-# Foreign Stock Trading Service
+# 海外株式取引サービス
 
-A starter Spring Boot service that models basic foreign equity trading and balance management. It exposes a REST API for creating accounts, depositing cash, and executing buy/sell orders against an in-memory portfolio. A lightweight static page is bundled to make the first manual calls without a dedicated front-end stack.
+基本的な海外株式の取引と残高管理をモデル化した Spring Boot のスターターサービスです。REST API を公開しており、アカウントの作成、現金の入金、買い／売り注文の執行を行い、メモリ内ポートフォリオを管理します。専用のフロントエンドスタックがなくても最初の手動リクエストを試せる軽量な静的ページも同梱しています。
 
-## Features
-- Create trading accounts with an initial cash deposit
-- Deposit or withdraw USD cash from an account
-- Execute buy/sell trades for international symbols with average cost tracking
-- Retrieve an account snapshot showing cash and current holdings
-- Minimal HTML client that issues the REST calls from the browser
+## 機能
+- 初期入金額を指定して取引アカウントを作成
+- アカウントへの米ドル入金／出金
+- 海外銘柄の買い／売り注文を実行し、平均取得単価を追跡
+- 現金残高と保有銘柄を含むアカウントスナップショットを取得
+- ブラウザから REST 呼び出しを行える最小限の HTML クライアントを提供
 
-## Tech Stack
+## 技術スタック
 - Java 17
-- Spring Boot 3 (Web + Validation)
-- Maven for builds and dependency management
-- JUnit 5 for unit testing
+- Spring Boot 3（Web + Validation）
+- Maven（ビルドと依存関係管理）
+- JUnit 5（ユニットテスト）
 
-## Getting Started
+## はじめに
 
-### Prerequisites
-- Java 17 or newer
-- Maven 3.9+
+### 前提条件
+- Java 17 以上
+- Maven 3.9 以上
 
-### Running the service
+### サービスの起動
 ```bash
 mvn spring-boot:run
 ```
-The API will be available at `http://localhost:8080`. Open `http://localhost:8080/index.html` in a browser to try the minimal UI.
+API は `http://localhost:8080` で利用可能です。ブラウザで `http://localhost:8080/index.html` を開くと、最小限の UI を試せます。
 
-### Running tests
+### テストの実行
 ```bash
 mvn test
 ```
 
-## API Overview
+## API の概要
 
-| Method | Endpoint | Description |
+| メソッド | エンドポイント | 説明 |
 | --- | --- | --- |
-| POST | `/api/accounts` | Create a new account |
-| GET | `/api/accounts/{id}` | Retrieve account balances and holdings |
-| POST | `/api/accounts/{id}/deposit` | Deposit USD into the account |
-| POST | `/api/accounts/{id}/withdraw` | Withdraw USD from the account |
-| POST | `/api/accounts/{id}/trade` | Execute a buy or sell trade |
+| POST | `/api/accounts` | 新しいアカウントを作成 |
+| GET | `/api/accounts/{id}` | アカウントの残高と保有銘柄を取得 |
+| POST | `/api/accounts/{id}/deposit` | アカウントに米ドルを入金 |
+| POST | `/api/accounts/{id}/withdraw` | アカウントから米ドルを出金 |
+| POST | `/api/accounts/{id}/trade` | 買いまたは売りの取引を実行 |
 
-All POST endpoints accept and return JSON payloads. Validation errors and business rules respond with HTTP 400; missing accounts return HTTP 404.
+すべての POST エンドポイントは JSON ペイロードを受け取り、JSON を返します。検証エラーやビジネスルール違反の場合は HTTP 400、アカウントが見つからない場合は HTTP 404 を返します。
 
-## Next Steps
-- Persist accounts to a database
-- Add authentication/authorization
-- Integrate with real-time FX and market data sources
-- Expand the front-end into a richer portfolio dashboard
+## 今後の拡張案
+- アカウントをデータベースに永続化
+- 認証／認可の追加
+- リアルタイムの為替・市場データソースとの連携
+- フロントエンドを拡張して、よりリッチなポートフォリオダッシュボードを提供
