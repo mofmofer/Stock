@@ -53,12 +53,17 @@ class AccountPersistenceIntegrationTest {
         assertEquals(new BigDecimal("150.00"), apple.getAverageCost());
 
         List<Transaction> transactions = accountService.getTransactions(id);
-        assertEquals(3, transactions.size());
+        assertEquals(4, transactions.size());
         Transaction latest = transactions.get(0);
         assertEquals(TransactionType.TRADE, latest.getType());
         assertEquals(TradeSide.SELL, latest.getTradeSide());
         assertEquals(0, latest.getGrossAmount().compareTo(new BigDecimal("320.00")));
         assertEquals(new BigDecimal("10070.00"), latest.getCashBalanceAfter());
+
+        Transaction initialDeposit = transactions.get(transactions.size() - 1);
+        assertEquals(TransactionType.DEPOSIT, initialDeposit.getType());
+        assertEquals(new BigDecimal("10000.00"), initialDeposit.getCashAmount());
+        assertEquals(new BigDecimal("10000.00"), initialDeposit.getCashBalanceAfter());
     }
 
     @Test
@@ -81,9 +86,12 @@ class AccountPersistenceIntegrationTest {
         assertEquals(new BigDecimal("4"), holding.getQuantity());
 
         List<Transaction> history = accountService.getTransactions(account.getId());
-        assertEquals(1, history.size());
+        assertEquals(2, history.size());
         Transaction trade = history.get(0);
         assertEquals(TransactionType.TRADE, trade.getType());
         assertEquals(0, trade.getCashAmount().compareTo(new BigDecimal("-1280.00")));
+        Transaction initial = history.get(1);
+        assertEquals(TransactionType.DEPOSIT, initial.getType());
+        assertEquals(new BigDecimal("2500.00"), initial.getCashAmount());
     }
 }

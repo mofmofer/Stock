@@ -67,6 +67,18 @@ class AccountServiceTest {
     }
 
     @Test
+    void createAccountWithInitialDepositShouldRecordTransaction() {
+        Account account = accountService.createAccount("Initial", new BigDecimal("750"));
+
+        ArgumentCaptor<Transaction> captor = ArgumentCaptor.forClass(Transaction.class);
+        verify(transactionRepository).save(captor.capture());
+        Transaction transaction = captor.getValue();
+        assertEquals(TransactionType.DEPOSIT, transaction.getType());
+        assertEquals(new BigDecimal("750"), transaction.getCashAmount());
+        assertEquals(account.getCashBalance(), transaction.getCashBalanceAfter());
+    }
+
+    @Test
     void buyTradeShouldReduceCashAndAddHolding() {
         Account account = accountService.createAccount("Bob", new BigDecimal("10000"));
         clearInvocations(transactionRepository);

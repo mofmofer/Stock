@@ -44,7 +44,12 @@ public class AccountService {
     public Account createAccount(String ownerName, BigDecimal initialDeposit) {
         BigDecimal startingBalance = initialDeposit == null ? BigDecimal.ZERO : initialDeposit;
         Account account = new Account(ownerName, startingBalance);
-        return accountRepository.save(account);
+        Account saved = accountRepository.save(account);
+        if (startingBalance.signum() > 0) {
+            transactionRepository.save(
+                    Transaction.cash(saved, TransactionType.DEPOSIT, startingBalance, saved.getCashBalance()));
+        }
+        return saved;
     }
 
     /**
