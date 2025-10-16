@@ -45,12 +45,22 @@ mvn test
 ### GitHub Actions + コンテナレジストリ + AWS App Runner
 リポジトリにはマルチステージビルドの Dockerfile と、ECR へのプッシュおよび App Runner へのデプロイを自動化する GitHub Actions ワークフローを追加しています。
 
-1. Dockerfile は Maven ベースのビルド段階で `mvn -Pproduction package` を実行して JAR を生成し、実行段階では Temurin JRE で `java -jar /app/app.jar` を起動します。
-2. `.github/workflows/deploy-app-runner.yml` を有効化するには、以下のリポジトリ変数／シークレットを設定します。
-   - **Repository variables**: `AWS_REGION`（例: `ap-northeast-1`）、`ECR_REPOSITORY`（例: `stock-service`）。
-   - **Secrets**: `AWS_DEPLOY_ROLE_ARN`（GitHub OIDC から Assume する IAM ロール）、`APP_RUNNER_SERVICE_ARN`（既存サービスの ARN。新規作成時は空のままでも可）。
-3. ワークフローは `main` ブランチへの push または手動実行で起動し、ECR リポジトリの作成を確認した上で `docker build`／`docker push` を行います。最後に App Runner サービスへ最新イメージを指定し、`aws apprunner start-deployment` でローリングデプロイをトリガーします。
-4. App Runner が提供する https エンドポイントは自動で TLS 終端されるため、スマホなど外部端末から安全にアクセスできます。追加の認証が必要な場合は AWS WAF + Cognito 認証、IAM 認証付きの Web Application Firewall、あるいは Basic 認証リバースプロキシ（ALB + Lambda@Edge など）を組み合わせてください。
+#### 1. コンテナイメージのビルド概要
+Dockerfile は Maven ベースのビルド段階で `mvn -Pproduction package` を実行して JAR を生成し、実行段階では Temurin JRE で `java -jar /app/app.jar` を起動します。
+
+#### 2. GitHub Actions での AWS 認証を準備する
+1. **IAM ロールを作成**: AWS マネジメントコンソールで GitHub OIDC プロバイダ（`token.actions.githubusercontent.com`）を信頼するロールを新規作成し、`<owner>/<repo>` リポジトリからの AssumeRole を許可する条件を信頼ポリシーに追加します。ECR・App Runner へアクセスできる権限ポリシーをアタッチしてください。
+2. **ロール ARN を GitHub シークレットに登録**: 作成したロールの ARN をコピーし、GitHub リポジトリの Settings → *Secrets and variables* → *Actions* で `AWS_DEPLOY_ROLE_ARN` シークレットを追加します。
+3. **リポジトリ変数を設定**: 同画面の *Variables* タブで `AWS_REGION`（例: `ap-northeast-1`）と `ECR_REPOSITORY`（例: `stock-service`）の 2 つを登録します。
+4. **App Runner の ARN（任意）**: 既存サービスを使う場合はその ARN を `APP_RUNNER_SERVICE_ARN` シークレットに登録します。初回にサービスを新規作成するなら、空のままで構いません。
+
+#### 3. ワークフローを実行する
+1. GitHub Actions の `Deploy to AWS App Runner` ワークフローを `main` ブランチへの push か手動実行で起動します。
+2. `Configure AWS credentials` ステップで STS 認証が成功することを確認します（ここで失敗する場合は上記シークレット／変数設定を見直してください）。
+3. 後続ステップでは ECR リポジトリを作成（未作成の場合）、`docker build`／`docker push`、App Runner サービスの作成または更新、`aws apprunner start-deployment` によるローリングデプロイを順番に行います。
+
+#### 4. 公開 URL の取り扱い
+App Runner が提供する https エンドポイントは自動で TLS 終端されるため、スマホなど外部端末から安全にアクセスできます。追加の認証が必要な場合は AWS WAF + Cognito 認証、IAM 認証付きの Web Application Firewall、あるいは Basic 認証リバースプロキシ（ALB + Lambda@Edge など）を組み合わせてください。
 
 ### AWS Elastic Beanstalk や ECS/Fargate での常時稼働
 1. Elastic Beanstalk の Java プラットフォームを選び、`mvn package` で生成した `target/*.jar` をアップロードするだけで自動デプロイできます。環境作成時に公開 URL が付与され、スマホから `https://<環境名>.elasticbeanstalk.com/index.html` にアクセスできます。
