@@ -32,6 +32,27 @@ API は `http://localhost:8080` で利用可能です。ブラウザで `http://
 mvn test
 ```
 
+## リモート／クラウド環境でのホスティング
+
+ローカル PC の代わりにクラウド上のコンテナ環境でアプリを起動し、スマホなど外部端末からアクセスしたい場合は以下のワークフローが利用できます。
+
+### GitHub Codespaces での一時ホスト
+1. GitHub リポジトリで Codespace を作成し、VS Code またはブラウザ版エディタで開きます。
+2. ターミナルで上記と同じ手順で `mvn spring-boot:run` を実行します。
+3. Codespaces の Ports タブで 8080 番ポートを **Public** に変更すると、共有可能な https URL が払い出されます。スマホのブラウザからその URL（例: `https://<hash>-8080.app.github.dev/index.html`）へアクセスすると、PC と同じ UI を操作できます。
+4. 公開した URL は認証付きですが、必要に応じてアクセス権を制限し、不要になったら Codespace を停止または削除します。
+
+### GitHub Actions + コンテナレジストリ + AWS App Runner
+1. プロジェクトルートに Dockerfile を追加し、Spring Boot アプリをコンテナ化します（マルチステージビルドで `mvn -Pproduction package` などを実行し、`java -jar target/*.jar` で起動するイメージを作成）。
+2. GitHub Actions で `docker build` と `docker push` を行い、AWS Elastic Container Registry (ECR) へイメージを保存します。
+3. AWS App Runner で ECR のイメージを指定し、ポート 8080 のサービスを作成します。App Runner が自動でロードバランサーと SSL 終端を提供するため、発行された https エンドポイントからスマホでもアクセスできます。
+4. 認証が必要な場合は、AWS WAF や IAM 認証付きの Web Application Firewall を組み合わせるか、Basic 認証付きのリバースプロキシを別途用意します。
+
+### AWS Elastic Beanstalk や ECS/Fargate での常時稼働
+1. Elastic Beanstalk の Java プラットフォームを選び、`mvn package` で生成した `target/*.jar` をアップロードするだけで自動デプロイできます。環境作成時に公開 URL が付与され、スマホから `https://<環境名>.elasticbeanstalk.com/index.html` にアクセスできます。
+2. あるいは Dockerfile をベースに Amazon ECS + Fargate のタスク定義を作成し、Application Load Balancer 経由で 8080 ポートをインターネットに公開します。Route53 で独自ドメインを割り当てれば、社内／外部のスマホからも同じ URL で利用できます。
+3. パブリッククラウドに公開する際は、VPC のセキュリティグループや WAF で IP 制限や TLS を設定し、認証／認可の実装を追加してから運用してください。
+
 ## API の概要
 
 | メソッド | エンドポイント | 説明 |
