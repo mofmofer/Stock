@@ -163,6 +163,64 @@
             word-break: break-word;
         }
 
+        .account-status {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin-top: 0.5rem;
+        }
+
+        .status-card {
+            background: rgba(36, 54, 163, 0.07);
+            border-radius: 14px;
+            padding: 1rem 1.25rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+
+        .status-label {
+            font-size: 0.85rem;
+            color: var(--muted);
+        }
+
+        .status-value {
+            font-size: 1.5rem;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+        }
+
+        .holdings-table-wrapper {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.95rem;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 0.5rem 0.25rem;
+        }
+
+        th {
+            color: var(--muted);
+            font-weight: 600;
+            border-bottom: 1px solid var(--border);
+        }
+
+        tbody tr + tr {
+            border-top: 1px solid rgba(36, 54, 163, 0.12);
+        }
+
+        .empty-state {
+            font-size: 0.9rem;
+            color: var(--muted);
+            margin: 0.25rem 0 0;
+        }
+
         .helper-text {
             font-size: 0.9rem;
             color: var(--muted);
@@ -256,11 +314,44 @@
         <div class="actions">
             <button onclick="fetchAccount()">最新情報を取得</button>
         </div>
+        <div class="account-status">
+            <div class="status-card">
+                <span class="status-label">現在の残高</span>
+                <span id="currentBalance" class="status-value">--</span>
+            </div>
+            <div class="status-card">
+                <span class="status-label">現在の保有株</span>
+                <div class="holdings-table-wrapper">
+                    <table id="holdingsTable">
+                        <thead>
+                            <tr>
+                                <th>銘柄コード</th>
+                                <th>取引所</th>
+                                <th>数量</th>
+                                <th>平均取得単価</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <p id="holdingsEmpty" class="empty-state">保有株はまだありません。</p>
+            </div>
+        </div>
         <pre id="output">操作をお待ちしています...</pre>
     </section>
 </main>
 
 <script>
+    const currencyFormatter = new Intl.NumberFormat('ja-JP', {
+        style: 'currency',
+        currency: 'USD'
+    });
+
+    const quantityFormatter = new Intl.NumberFormat('ja-JP', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 4
+    });
+
     async function request(url, options) {
         const response = await fetch(url, Object.assign({
             headers: { 'Content-Type': 'application/json' }
@@ -276,6 +367,80 @@
     function setOutput(data) {
         const formatted = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
         document.getElementById('output').textContent = formatted;
+        if (data && typeof data === 'object' && 'cashBalance' in data) {
+            updateAccountStatus(data);
+        }
+    }
+
+    function updateAccountStatus(summary) {
+        const balanceEl = document.getElementById('currentBalance');
+        const holdingsBody = document.querySelector('#holdingsTable tbody');
+        const holdingsEmptyEl = document.getElementById('holdingsEmpty');
+        if (!balanceEl || !holdingsBody || !holdingsEmptyEl) {
+            return;
+        }
+
+        balanceEl.textContent = formatCurrency(summary.cashBalance);
+
+        const holdings = Array.isArray(summary.holdings) ? summary.holdings : [];
+        holdingsBody.innerHTML = '';
+
+        if (holdings.length === 0) {
+            holdingsEmptyEl.style.display = 'block';
+            return;
+        }
+
+        holdingsEmptyEl.style.display = 'none';
+
+        holdings.forEach((holding) => {
+            const row = document.createElement('tr');
+            [
+                holding.symbol || '-',
+                holding.exchange || '-',
+                formatQuantity(holding.quantity),
+                formatCurrency(holding.averageCost)
+            ].forEach((text) => {
+                const cell = document.createElement('td');
+                cell.textContent = text;
+                row.appendChild(cell);
+            });
+            holdingsBody.appendChild(row);
+        });
+    }
+
+    function formatCurrency(value) {
+        const numericValue = toNumber(value);
+        if (Number.isNaN(numericValue)) {
+            return '-';
+        }
+        return currencyFormatter.format(numericValue);
+    }
+
+    function formatQuantity(value) {
+        const numericValue = toNumber(value);
+        if (Number.isNaN(numericValue)) {
+            return '-';
+        }
+        return quantityFormatter.format(numericValue);
+    }
+
+    function toNumber(value) {
+        if (typeof value === 'number') {
+            return value;
+        }
+        if (typeof value === 'string') {
+            return Number(value);
+        }
+        if (value && typeof value.valueOf === 'function') {
+            const converted = value.valueOf();
+            if (typeof converted === 'number') {
+                return converted;
+            }
+            if (typeof converted === 'string') {
+                return Number(converted);
+            }
+        }
+        return Number.NaN;
     }
 
     async function createAccount() {
