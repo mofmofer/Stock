@@ -69,4 +69,3 @@ jobs:
           aws apprunner update-service \
             --service-arn "$APP_RUNNER_SERVICE_ARN" \
             --source-configuration "ImageRepository={ImageIdentifier=$REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG,ImageRepositoryType=ECR,ImageConfiguration={Port=8080}}"
-          aws apprunner start-deployment --service-arn "$APP_RUNNER_SERVICE_ARN"
