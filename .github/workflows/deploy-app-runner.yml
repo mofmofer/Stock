@@ -60,7 +60,7 @@ jobs:
           docker push "$REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
           docker push "$REGISTRY/$ECR_REPOSITORY:latest"
 
-      - name: Trigger App Runner deployment
+      - name: Update App Runner service
         if: env.APP_RUNNER_SERVICE_ARN != ''
         env:
           IMAGE_TAG: ${{ github.sha }}
@@ -69,3 +69,9 @@ jobs:
           aws apprunner update-service \
             --service-arn "$APP_RUNNER_SERVICE_ARN" \
             --source-configuration "ImageRepository={ImageIdentifier=$REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG,ImageRepositoryType=ECR,ImageConfiguration={Port=8080}}"
+
+      - name: Wait for App Runner deployment to complete
+        if: env.APP_RUNNER_SERVICE_ARN != ''
+        run: |
+          aws apprunner wait service-active \
+            --service-arn "$APP_RUNNER_SERVICE_ARN"
