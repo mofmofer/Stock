@@ -6,7 +6,10 @@ import com.example.stock.exception.InvalidTradeException;
 import com.example.stock.model.Account;
 import com.example.stock.model.Holding;
 import com.example.stock.model.TradeSide;
+import com.example.stock.model.Transaction;
+import com.example.stock.model.TransactionType;
 import com.example.stock.repository.AccountRepository;
+import com.example.stock.repository.TransactionRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,9 +27,11 @@ import java.util.UUID;
 public class AccountService {
     private static final MathContext MATH_CONTEXT = new MathContext(12, RoundingMode.HALF_UP);
     private final AccountRepository accountRepository;
+    private final TransactionRepository transactionRepository;
 
-    public AccountService(AccountRepository accountRepository) {
+    public AccountService(AccountRepository accountRepository, TransactionRepository transactionRepository) {
         this.accountRepository = accountRepository;
+        this.transactionRepository = transactionRepository;
     }
 
     /**
@@ -75,7 +80,9 @@ public class AccountService {
     public Account deposit(UUID id, BigDecimal amount) {
         Account account = loadAccount(id);
         account.setCashBalance(account.getCashBalance().add(amount, MATH_CONTEXT));
-        return accountRepository.save(account);
+        Account saved = accountRepository.save(account);
+        transactionRepository.save(Transaction.cash(saved, TransactionType.DEPOSIT, amount, saved.getCashBalance()));
+        return saved;
     }
 
     /**
@@ -92,7 +99,9 @@ public class AccountService {
             throw new InsufficientFundsException(id, amount, account.getCashBalance());
         }
         account.setCashBalance(account.getCashBalance().subtract(amount, MATH_CONTEXT));
-        return accountRepository.save(account);
+        Account saved = accountRepository.save(account);
+        transactionRepository.save(Transaction.cash(saved, TransactionType.WITHDRAWAL, amount, saved.getCashBalance()));
+        return saved;
     }
 
     /**
@@ -151,7 +160,22 @@ public class AccountService {
                 existing.setQuantity(newQuantity);
             }
         }
-        return accountRepository.save(account);
+        Account saved = accountRepository.save(account);
+        transactionRepository.save(Transaction.trade(saved, side, key, exchange, quantity, pricePerShare, grossAmount,
+                saved.getCashBalance()));
+        return saved;
+    }
+
+    /**
+     * 指定したアカウントのトランザクション履歴を取得します。
+     *
+     * @param id アカウント識別子
+     * @return トランザクション一覧（新しい順）
+     */
+    @Transactional(readOnly = true)
+    public List<Transaction> getTransactions(UUID id) {
+        loadAccount(id);
+        return transactionRepository.findByAccountIdOrderByOccurredAtDesc(id);
     }
 
     private Account loadAccount(UUID id) {

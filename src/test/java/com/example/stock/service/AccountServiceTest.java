@@ -5,9 +5,13 @@ import com.example.stock.exception.InvalidTradeException;
 import com.example.stock.model.Account;
 import com.example.stock.model.Holding;
 import com.example.stock.model.TradeSide;
+import com.example.stock.model.Transaction;
+import com.example.stock.model.TransactionType;
 import com.example.stock.repository.AccountRepository;
+import com.example.stock.repository.TransactionRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.stubbing.Answer;
 
 import java.math.BigDecimal;
@@ -19,12 +23,15 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 class AccountServiceTest {
 
     private AccountRepository accountRepository;
+    private TransactionRepository transactionRepository;
     private AccountService accountService;
     private Map<UUID, Account> store;
 
@@ -32,7 +39,8 @@ class AccountServiceTest {
     void setUp() {
         store = new HashMap<>();
         accountRepository = mock(AccountRepository.class);
-        accountService = new AccountService(accountRepository);
+        transactionRepository = mock(TransactionRepository.class);
+        accountService = new AccountService(accountRepository, transactionRepository);
 
         Answer<Account> saveAnswer = invocation -> {
             Account account = invocation.getArgument(0);
@@ -44,6 +52,10 @@ class AccountServiceTest {
                 .thenAnswer(invocation -> Optional.ofNullable(store.get(invocation.getArgument(0))));
         lenient().when(accountRepository.findAll())
                 .thenAnswer(invocation -> new ArrayList<>(store.values()));
+        lenient().when(transactionRepository.save(any(Transaction.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        lenient().when(transactionRepository.findByAccountIdOrderByOccurredAtDesc(any(UUID.class)))
+                .thenAnswer(invocation -> new ArrayList<>());
     }
 
     @Test
@@ -57,6 +69,7 @@ class AccountServiceTest {
     @Test
     void buyTradeShouldReduceCashAndAddHolding() {
         Account account = accountService.createAccount("Bob", new BigDecimal("10000"));
+        clearInvocations(transactionRepository);
         accountService.executeTrade(account.getId(), TradeSide.BUY, "SONY", "TYO", new BigDecimal("10"), new BigDecimal("95"));
 
         Account updated = accountService.getAccount(account.getId());
@@ -64,12 +77,14 @@ class AccountServiceTest {
         Optional<Holding> sonyHolding = updated.findHolding("SONY");
         assertTrue(sonyHolding.isPresent());
         assertEquals(new BigDecimal("10"), sonyHolding.get().getQuantity());
+        verify(transactionRepository).save(any(Transaction.class));
     }
 
     @Test
     void sellTradeShouldIncreaseCashAndReduceHolding() {
         Account account = accountService.createAccount("Charlie", new BigDecimal("5000"));
         accountService.executeTrade(account.getId(), TradeSide.BUY, "TSM", "NYSE", new BigDecimal("5"), new BigDecimal("100"));
+        clearInvocations(transactionRepository);
         accountService.executeTrade(account.getId(), TradeSide.SELL, "TSM", "NYSE", new BigDecimal("3"), new BigDecimal("120"));
 
         Account updated = accountService.getAccount(account.getId());
@@ -77,6 +92,7 @@ class AccountServiceTest {
         Optional<Holding> tsmHolding = updated.findHolding("TSM");
         assertTrue(tsmHolding.isPresent());
         assertEquals(new BigDecimal("2"), tsmHolding.get().getQuantity());
+        verify(transactionRepository).save(any(Transaction.class));
     }
 
     @Test
@@ -92,5 +108,33 @@ class AccountServiceTest {
         Account account = accountService.createAccount("Eve", new BigDecimal("100"));
         assertThrows(InsufficientFundsException.class, () ->
                 accountService.executeTrade(account.getId(), TradeSide.BUY, "SHOP", "NYSE", new BigDecimal("10"), new BigDecimal("50")));
+    }
+
+    @Test
+    void depositShouldRecordTransaction() {
+        Account account = accountService.createAccount("Frank", new BigDecimal("200"));
+        clearInvocations(transactionRepository);
+        accountService.deposit(account.getId(), new BigDecimal("50"));
+
+        ArgumentCaptor<Transaction> captor = ArgumentCaptor.forClass(Transaction.class);
+        verify(transactionRepository).save(captor.capture());
+        Transaction transaction = captor.getValue();
+        assertEquals(TransactionType.DEPOSIT, transaction.getType());
+        assertEquals(new BigDecimal("50"), transaction.getCashAmount());
+        assertEquals(new BigDecimal("250"), transaction.getCashBalanceAfter());
+    }
+
+    @Test
+    void withdrawShouldPersistNegativeCashAmount() {
+        Account account = accountService.createAccount("Grace", new BigDecimal("500"));
+        clearInvocations(transactionRepository);
+        accountService.withdraw(account.getId(), new BigDecimal("120"));
+
+        ArgumentCaptor<Transaction> captor = ArgumentCaptor.forClass(Transaction.class);
+        verify(transactionRepository).save(captor.capture());
+        Transaction transaction = captor.getValue();
+        assertEquals(TransactionType.WITHDRAWAL, transaction.getType());
+        assertEquals(new BigDecimal("-120"), transaction.getCashAmount());
+        assertEquals(new BigDecimal("380"), transaction.getCashBalanceAfter());
     }
 }

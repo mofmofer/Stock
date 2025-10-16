@@ -3,6 +3,8 @@ package com.example.stock.service;
 import com.example.stock.model.Account;
 import com.example.stock.model.Holding;
 import com.example.stock.model.TradeSide;
+import com.example.stock.model.Transaction;
+import com.example.stock.model.TransactionType;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.Test;
@@ -49,6 +51,14 @@ class AccountPersistenceIntegrationTest {
         Holding apple = reloaded.findHolding("AAPL").orElseThrow();
         assertEquals(new BigDecimal("3"), apple.getQuantity());
         assertEquals(new BigDecimal("150.00"), apple.getAverageCost());
+
+        List<Transaction> transactions = accountService.getTransactions(id);
+        assertEquals(3, transactions.size());
+        Transaction latest = transactions.get(0);
+        assertEquals(TransactionType.TRADE, latest.getType());
+        assertEquals(TradeSide.SELL, latest.getTradeSide());
+        assertEquals(0, latest.getGrossAmount().compareTo(new BigDecimal("320.00")));
+        assertEquals(new BigDecimal("10070.00"), latest.getCashBalanceAfter());
     }
 
     @Test
@@ -69,5 +79,11 @@ class AccountPersistenceIntegrationTest {
         Holding holding = persisted.getHoldings().get(0);
         assertEquals("MSFT", holding.getSymbol());
         assertEquals(new BigDecimal("4"), holding.getQuantity());
+
+        List<Transaction> history = accountService.getTransactions(account.getId());
+        assertEquals(1, history.size());
+        Transaction trade = history.get(0);
+        assertEquals(TransactionType.TRADE, trade.getType());
+        assertEquals(0, trade.getCashAmount().compareTo(new BigDecimal("-1280.00")));
     }
 }

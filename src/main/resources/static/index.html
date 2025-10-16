@@ -190,7 +190,8 @@
             letter-spacing: 0.02em;
         }
 
-        .holdings-table-wrapper {
+        .holdings-table-wrapper,
+        .table-wrapper {
             overflow-x: auto;
         }
 
@@ -339,6 +340,34 @@
         </div>
         <pre id="output">操作をお待ちしています...</pre>
     </section>
+
+    <section>
+        <h2>取引履歴</h2>
+        <label>口座 ID
+            <input id="historyAccountId" placeholder="口座 ID を貼り付け" autocomplete="off" />
+        </label>
+        <div class="actions">
+            <button onclick="fetchTransactions()">履歴を取得</button>
+        </div>
+        <div class="table-wrapper">
+            <table id="transactionsTable">
+                <thead>
+                    <tr>
+                        <th>日時</th>
+                        <th>種別</th>
+                        <th>区分</th>
+                        <th>銘柄 / 市場</th>
+                        <th>数量</th>
+                        <th>単価</th>
+                        <th>現金増減</th>
+                        <th>取引後残高</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        <p id="transactionsEmpty" class="empty-state">トランザクションはまだありません。</p>
+    </section>
 </main>
 
 <script>
@@ -351,6 +380,21 @@
         minimumFractionDigits: 0,
         maximumFractionDigits: 4
     });
+
+    const dateTimeFormatter = new Intl.DateTimeFormat('ja-JP', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+    });
+
+    const transactionTypeLabels = {
+        DEPOSIT: '入金',
+        WITHDRAWAL: '出金',
+        TRADE: '売買'
+    };
 
     async function request(url, options) {
         const response = await fetch(url, Object.assign({
@@ -453,7 +497,9 @@
             document.getElementById('cashAccountId').value = result.id || '';
             document.getElementById('tradeAccountId').value = result.id || '';
             document.getElementById('snapshotAccountId').value = result.id || '';
+            document.getElementById('historyAccountId').value = result.id || '';
             setOutput(result);
+            renderTransactions([]);
         } catch (err) {
             setOutput(`エラー: ${err.message}`);
         }
@@ -480,6 +526,7 @@
                 body: JSON.stringify({ amount })
             });
             setOutput(result);
+            await updateHistoryTable(accountId);
         } catch (err) {
             setOutput(`エラー: ${err.message}`);
         }
@@ -504,6 +551,7 @@
                 body: JSON.stringify(payload)
             });
             setOutput(result);
+            await updateHistoryTable(accountId);
         } catch (err) {
             setOutput(`エラー: ${err.message}`);
         }
@@ -518,9 +566,110 @@
         try {
             const result = await request(`/api/accounts/${accountId}`);
             setOutput(result);
+            await updateHistoryTable(accountId);
         } catch (err) {
             setOutput(`エラー: ${err.message}`);
         }
+    }
+
+    async function fetchTransactions() {
+        const accountId = document.getElementById('historyAccountId').value;
+        if (!accountId) {
+            setOutput('エラー: 口座 ID を入力してください。');
+            return;
+        }
+        await updateHistoryTable(accountId, { updateOutput: true });
+    }
+
+    async function updateHistoryTable(accountId, { updateOutput = false } = {}) {
+        if (!accountId) {
+            return;
+        }
+        const historyInput = document.getElementById('historyAccountId');
+        if (historyInput) {
+            historyInput.value = accountId;
+        }
+        try {
+            const transactions = await request(`/api/accounts/${accountId}/transactions`);
+            renderTransactions(transactions);
+            if (updateOutput) {
+                setOutput(transactions);
+            }
+        } catch (err) {
+            if (updateOutput) {
+                setOutput(`エラー: ${err.message}`);
+            } else {
+                console.warn('取引履歴の取得に失敗しました:', err);
+            }
+        }
+    }
+
+    function renderTransactions(transactions) {
+        const tableBody = document.querySelector('#transactionsTable tbody');
+        const emptyEl = document.getElementById('transactionsEmpty');
+        if (!tableBody || !emptyEl) {
+            return;
+        }
+
+        tableBody.innerHTML = '';
+
+        if (!Array.isArray(transactions) || transactions.length === 0) {
+            emptyEl.style.display = 'block';
+            return;
+        }
+
+        emptyEl.style.display = 'none';
+
+        transactions.forEach((tx) => {
+            const row = document.createElement('tr');
+            const cells = [
+                formatDateTime(tx.occurredAt),
+                transactionTypeLabels[tx.type] || (tx.type ?? '-'),
+                formatTradeSide(tx.tradeSide),
+                formatSymbol(tx.symbol, tx.exchange),
+                formatQuantity(tx.quantity),
+                formatCurrency(tx.pricePerShare),
+                formatCurrency(tx.cashAmount),
+                formatCurrency(tx.cashBalanceAfter)
+            ];
+            cells.forEach((text) => {
+                const cell = document.createElement('td');
+                cell.textContent = text ?? '-';
+                row.appendChild(cell);
+            });
+            tableBody.appendChild(row);
+        });
+    }
+
+    function formatTradeSide(side) {
+        if (side === 'BUY') {
+            return '買付';
+        }
+        if (side === 'SELL') {
+            return '売却';
+        }
+        return '-';
+    }
+
+    function formatSymbol(symbol, exchange) {
+        if (!symbol && !exchange) {
+            return '-';
+        }
+        if (symbol && exchange) {
+            return `${symbol} / ${exchange}`;
+        }
+        return symbol || exchange || '-';
+    }
+
+    function formatDateTime(value) {
+        if (!value) {
+            return '-';
+        }
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) {
+            return value;
+        }
+        return dateTimeFormatter.format(date);
     }
 </script>
 </body>
