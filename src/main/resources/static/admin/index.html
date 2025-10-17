@@ -160,6 +160,48 @@
             text-align: right;
         }
 
+        .log-controls {
+            display: flex;
+            align-items: flex-end;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+        }
+
+        .log-controls label {
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+            font-size: 0.85rem;
+            color: var(--muted);
+        }
+
+        .log-controls select {
+            border: 1px solid rgba(31, 37, 68, 0.18);
+            border-radius: 12px;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.9rem;
+            font-family: inherit;
+            min-width: 160px;
+        }
+
+        .log-controls button {
+            margin-left: auto;
+        }
+
+        #accessLogsEmpty {
+            margin-top: 0.75rem;
+        }
+
+        #accessLogUpdatedAt {
+            margin-top: 0.5rem;
+        }
+
+        .log-user-agent {
+            max-width: 240px;
+            word-break: break-word;
+        }
+
         @media (max-width: 720px) {
             main {
                 padding: 1.25rem;
@@ -277,9 +319,61 @@
                 </table>
             </div>
         </section>
+        <section class="data-section" aria-labelledby="accessLogsHeading">
+            <h2 id="accessLogsHeading">アクセスログ</h2>
+            <p>ログイン画面や管理画面へのアクセス履歴を監査できます。</p>
+            <div class="log-controls">
+                <label for="accessLogPageFilter">
+                    対象画面
+                    <select id="accessLogPageFilter">
+                        <option value="ALL">すべて</option>
+                    </select>
+                </label>
+                <button type="button" id="accessLogRefreshButton">ログを更新</button>
+            </div>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>時刻</th>
+                        <th>画面</th>
+                        <th>パス</th>
+                        <th>IP アドレス</th>
+                        <th>ユーザーエージェント</th>
+                    </tr>
+                    </thead>
+                    <tbody id="accessLogTableBody">
+                    <tr>
+                        <td colspan="5" class="empty">アクセスログを取得しています...</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            <p id="accessLogsEmpty" class="empty" style="display: none;">アクセスログはまだありません。</p>
+            <div id="accessLogUpdatedAt" class="updated-at"></div>
+        </section>
     </div>
 </main>
 <script>
+    const accessLogPageLabels = {
+        USER_LOGIN: '利用者ログイン画面',
+        ADMIN_LOGIN: '管理者ログイン画面',
+        USER_PORTAL: '利用者トップ画面',
+        ADMIN_DASHBOARD: '管理者ダッシュボード'
+    };
+
+    async function logAccess(pageName) {
+        try {
+            await fetch('/api/access-logs', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ page: pageName, path: window.location.pathname })
+            });
+        } catch (error) {
+            console.warn('アクセスログの送信に失敗しました', error);
+        }
+    }
+
     async function loadDashboard() {
         setLoading(true);
         resetTables();
@@ -424,6 +518,122 @@
         return results.flat().sort((a, b) => new Date(b.occurredAt) - new Date(a.occurredAt));
     }
 
+    async function fetchAccessLogPages() {
+        const response = await fetch('/api/access-logs/pages');
+        if (!response.ok) {
+            throw new Error(await response.text() || response.statusText);
+        }
+        return response.json();
+    }
+
+    async function populateAccessLogFilter() {
+        const select = document.getElementById('accessLogPageFilter');
+        if (!select) {
+            return;
+        }
+        const previousValue = select.value || 'ALL';
+        try {
+            const pages = await fetchAccessLogPages();
+            const candidates = ['ALL', ...pages.filter((page) => typeof page === 'string')];
+            select.innerHTML = '';
+            for (const page of candidates) {
+                const option = document.createElement('option');
+                option.value = page;
+                option.textContent = page === 'ALL' ? 'すべて' : formatAccessLogPage(page);
+                select.appendChild(option);
+            }
+            if (candidates.includes(previousValue)) {
+                select.value = previousValue;
+            }
+        } catch (error) {
+            console.warn('アクセスログ対象ページの取得に失敗しました', error);
+            if (!Array.from(select.options).some((option) => option.value === 'ALL')) {
+                const option = document.createElement('option');
+                option.value = 'ALL';
+                option.textContent = 'すべて';
+                select.appendChild(option);
+            }
+            select.value = 'ALL';
+        }
+    }
+
+    async function loadAccessLogs({ showLoading = true } = {}) {
+        const tbody = document.getElementById('accessLogTableBody');
+        const emptyMessage = document.getElementById('accessLogsEmpty');
+        const updatedAtEl = document.getElementById('accessLogUpdatedAt');
+        const select = document.getElementById('accessLogPageFilter');
+        if (!tbody || !emptyMessage) {
+            return;
+        }
+
+        const params = new URLSearchParams({ limit: '100' });
+        const selectedPage = select ? select.value : 'ALL';
+        if (selectedPage && selectedPage !== 'ALL') {
+            params.set('page', selectedPage);
+        }
+
+        if (showLoading) {
+            tbody.innerHTML = '';
+            tbody.appendChild(createEmptyRow(5, 'アクセスログを取得しています...'));
+            emptyMessage.style.display = 'none';
+        }
+
+        try {
+            const response = await fetch(`/api/access-logs?${params.toString()}`);
+            if (!response.ok) {
+                throw new Error(await response.text() || response.statusText);
+            }
+            const logs = await response.json();
+            renderAccessLogTable(logs);
+            if (!logs.length) {
+                emptyMessage.style.display = 'block';
+            } else {
+                emptyMessage.style.display = 'none';
+            }
+            if (updatedAtEl) {
+                updatedAtEl.textContent = `最終取得: ${new Date().toLocaleString('ja-JP')}`;
+            }
+        } catch (error) {
+            tbody.innerHTML = '';
+            tbody.appendChild(createEmptyRow(5, `アクセスログの取得に失敗しました: ${escapeHtml(error.message)}`));
+            if (emptyMessage) {
+                emptyMessage.style.display = 'none';
+            }
+            if (updatedAtEl) {
+                updatedAtEl.textContent = '';
+            }
+        }
+    }
+
+    function renderAccessLogTable(logs) {
+        const tbody = document.getElementById('accessLogTableBody');
+        if (!tbody) {
+            return;
+        }
+        tbody.innerHTML = '';
+        if (!Array.isArray(logs) || !logs.length) {
+            return;
+        }
+        for (const log of logs) {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${formatDateTime(log.accessedAt)}</td>
+                <td>${formatAccessLogPage(log.page)}</td>
+                <td><code>${escapeHtml(log.path ?? '')}</code></td>
+                <td>${escapeHtml(log.ipAddress ?? '-')}</td>
+                <td class="log-user-agent">${escapeHtml(log.userAgent ?? '-')}</td>
+            `;
+            tbody.appendChild(row);
+        }
+    }
+
+    function formatAccessLogPage(page) {
+        if (!page) {
+            return '-';
+        }
+        return accessLogPageLabels[page] || page;
+    }
+
     function createEmptyRow(colspan, message) {
         const row = document.createElement('tr');
         row.innerHTML = `<td colspan="${colspan}" class="empty">${escapeHtml(message)}</td>`;
@@ -524,8 +734,30 @@
         return text.replace(/[&<>"']/g, (m) => map[m]);
     }
 
-    document.getElementById('refreshButton').addEventListener('click', loadDashboard);
-    loadDashboard();
+    document.addEventListener('DOMContentLoaded', async () => {
+        const refreshButton = document.getElementById('refreshButton');
+        if (refreshButton) {
+            refreshButton.addEventListener('click', async () => {
+                await loadDashboard();
+                await loadAccessLogs({ showLoading: true });
+            });
+        }
+
+        const accessLogRefreshButton = document.getElementById('accessLogRefreshButton');
+        if (accessLogRefreshButton) {
+            accessLogRefreshButton.addEventListener('click', () => loadAccessLogs({ showLoading: true }));
+        }
+
+        const accessLogPageFilter = document.getElementById('accessLogPageFilter');
+        if (accessLogPageFilter) {
+            accessLogPageFilter.addEventListener('change', () => loadAccessLogs({ showLoading: true }));
+        }
+
+        logAccess('ADMIN_DASHBOARD');
+        await populateAccessLogFilter();
+        await loadDashboard();
+        await loadAccessLogs({ showLoading: true });
+    });
 </script>
 </body>
 </html>

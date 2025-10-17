@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理者ログイン - 海外株取引サービス</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-gradient: radial-gradient(circle at top right, #f4f6ff, #e8edff 40%, #ffffff 100%);
+            --card-bg: rgba(255, 255, 255, 0.94);
+            --primary: #1f3fb3;
+            --primary-hover: #182f83;
+            --muted: #525a82;
+            --border: rgba(31, 63, 179, 0.18);
+            --shadow: 0 20px 36px rgba(21, 29, 87, 0.18);
+            --accent: #ff855c;
+        }
+
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Noto Sans JP', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg-gradient);
+            color: #151b37;
+            padding: 2.5rem 1.5rem;
+        }
+
+        main {
+            width: min(440px, 100%);
+            background: var(--card-bg);
+            border-radius: 24px;
+            padding: 2.6rem 2.4rem;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+
+        main::before {
+            content: '';
+            position: absolute;
+            inset: -140px auto auto -140px;
+            width: 220px;
+            height: 220px;
+            background: radial-gradient(circle, rgba(31, 63, 179, 0.22), transparent 70%);
+            pointer-events: none;
+        }
+
+        h1 {
+            font-size: 1.9rem;
+            margin: 0 0 0.5rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+        }
+
+        p.lead {
+            margin: 0 0 1.9rem;
+            color: var(--muted);
+            line-height: 1.6;
+        }
+
+        label {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            font-size: 0.95rem;
+            color: var(--muted);
+            margin-bottom: 1.15rem;
+        }
+
+        input {
+            border: 1px solid rgba(21, 27, 55, 0.16);
+            border-radius: 14px;
+            padding: 0.8rem 1rem;
+            font-size: 1rem;
+            font-family: inherit;
+            transition: border 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(31, 63, 179, 0.2);
+        }
+
+        button {
+            width: 100%;
+            border: none;
+            border-radius: 999px;
+            padding: 0.85rem 1.4rem;
+            font-size: 1.05rem;
+            font-weight: 600;
+            cursor: pointer;
+            color: #fff;
+            background: linear-gradient(135deg, var(--primary), #4f6fff);
+            transition: transform 0.12s ease, box-shadow 0.12s ease;
+        }
+
+        button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 10px 26px rgba(31, 63, 179, 0.28);
+        }
+
+        button:active {
+            transform: translateY(0);
+            box-shadow: none;
+        }
+
+        .actions {
+            margin-top: 1.75rem;
+            text-align: center;
+        }
+
+        .actions a {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .actions a:hover {
+            text-decoration: underline;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            background: rgba(255, 133, 92, 0.12);
+            color: var(--accent);
+            font-size: 0.8rem;
+            padding: 0.35rem 0.75rem;
+            border-radius: 999px;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        #message {
+            margin-top: 1rem;
+            color: var(--muted);
+            font-size: 0.9rem;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+<main>
+    <span class="badge">管理者専用</span>
+    <h1>管理者ログイン</h1>
+    <p class="lead">運用ダッシュボードおよびアクセスログを閲覧するには管理用アカウントでサインインしてください。</p>
+    <form id="adminLoginForm">
+        <label>
+            管理者 ID
+            <input type="text" id="adminId" placeholder="admin" autocomplete="username" required>
+        </label>
+        <label>
+            パスワード
+            <input type="password" id="adminPassword" placeholder="セキュアなパスワード" autocomplete="current-password" required>
+        </label>
+        <button type="submit">管理画面に進む</button>
+    </form>
+    <div class="actions">
+        <a href="/index.html">利用者トップへ戻る</a>
+    </div>
+    <div id="message" role="status" aria-live="polite"></div>
+</main>
+<script>
+    async function logAccess(pageName) {
+        try {
+            await fetch('/api/access-logs', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ page: pageName, path: window.location.pathname })
+            });
+        } catch (error) {
+            console.warn('アクセスログの送信に失敗しました', error);
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        logAccess('ADMIN_LOGIN');
+
+        const form = document.getElementById('adminLoginForm');
+        const message = document.getElementById('message');
+
+        form.addEventListener('submit', (event) => {
+            event.preventDefault();
+            message.textContent = 'このデモ環境では認証は省略されています。"管理画面に進む" をクリックしてダッシュボードを直接ご利用ください。';
+        });
+    });
+</script>
+</body>
+</html>
+
