@@ -37,6 +37,11 @@ public class AuthController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED,
                         "メールアドレスまたはパスワードが正しくありません。"));
 
+        HttpSession existingSession = httpRequest.getSession(false);
+        if (existingSession != null) {
+            existingSession.invalidate();
+        }
+
         HttpSession session = httpRequest.getSession(true);
         session.setAttribute(SessionAttributes.AUTHENTICATED_USER, user);
         return new LoginResponse(user.displayName());
