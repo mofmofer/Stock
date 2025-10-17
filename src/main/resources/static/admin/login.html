@@ -150,6 +150,11 @@
             font-size: 0.9rem;
             text-align: center;
         }
+
+        #message.error {
+            color: #d9480f;
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
@@ -192,9 +197,63 @@
         const form = document.getElementById('adminLoginForm');
         const message = document.getElementById('message');
 
-        form.addEventListener('submit', (event) => {
+        async function redirectIfAuthenticated() {
+            try {
+                const response = await fetch('/api/admin/auth/session');
+                if (response.ok) {
+                    window.location.replace('/admin/index.html');
+                }
+            } catch (error) {
+                console.warn('管理者セッションの確認に失敗しました', error);
+            }
+        }
+
+        redirectIfAuthenticated();
+
+        function setMessage(text, isError = false) {
+            message.textContent = text;
+            message.classList.toggle('error', Boolean(isError));
+        }
+
+        form.addEventListener('submit', async (event) => {
             event.preventDefault();
-            message.textContent = 'このデモ環境では認証は省略されています。"管理画面に進む" をクリックしてダッシュボードを直接ご利用ください。';
+            const adminId = document.getElementById('adminId').value.trim();
+            const password = document.getElementById('adminPassword').value;
+
+            if (!adminId || !password) {
+                setMessage('管理者 ID とパスワードを入力してください。', true);
+                return;
+            }
+
+            setMessage('認証しています...');
+
+            try {
+                const response = await fetch('/api/admin/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ adminId, password })
+                });
+
+                if (!response.ok) {
+                    let body = {};
+                    try {
+                        body = await response.json();
+                    } catch (error) {
+                        body = {};
+                    }
+                    const errorMessage = body.message || '管理者 ID またはパスワードが正しくありません。';
+                    setMessage(errorMessage, true);
+                    return;
+                }
+
+                const result = await response.json().catch(() => ({}));
+                const displayName = result.displayName || '管理者';
+                setMessage(`${displayName} さん、ようこそ。`);
+                window.location.replace('/admin/index.html');
+            } catch (error) {
+                console.error('管理者ログインに失敗しました', error);
+                setMessage('サインインに失敗しました。通信環境をご確認ください。', true);
+            }
         });
     });
 </script>
