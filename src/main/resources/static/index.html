@@ -396,6 +396,18 @@
         TRADE: '売買'
     };
 
+    async function logAccess(pageName) {
+        try {
+            await fetch('/api/access-logs', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ page: pageName, path: window.location.pathname })
+            });
+        } catch (error) {
+            console.warn('アクセスログの送信に失敗しました', error);
+        }
+    }
+
     async function request(url, options) {
         const response = await fetch(url, Object.assign({
             headers: { 'Content-Type': 'application/json' }
@@ -681,6 +693,10 @@
         }
         return dateTimeFormatter.format(date);
     }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        logAccess('USER_PORTAL');
+    });
 </script>
 </body>
 </html>
