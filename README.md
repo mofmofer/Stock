@@ -1,103 +1,43 @@
 # 海外株式取引サービス
 
-基本的な海外株式の取引と残高管理をモデル化した Spring Boot のスターターサービスです。REST API を公開しており、アカウントの作成、現金の入金、買い／売り注文の執行を行い、SQLite データベースに永続化されたポートフォリオを管理します。専用のフロントエンドスタックがなくても最初の手動リクエストを試せる軽量な静的ページも同梱しています。
+海外株式の取引と残高管理をモデル化した Spring Boot サービスです。REST API を提供し、アカウント作成・入出金・売買といった基本的なオペレーションを SQLite に永続化します。最小限の HTML クライアント（`/admin/index.html`）も同梱しており、API を試しやすい構成です。
 
-## 機能
-- 初期入金額を指定して取引アカウントを作成
-- アカウントへの米ドル入金／出金
-- 海外銘柄の買い／売り注文を実行し、平均取得単価を追跡
-- 現金残高と保有銘柄を含むアカウントスナップショットを取得
-- 入出金・売買を含むトランザクション履歴を永続化して参照
-- 永続化されたアカウントをブラウザから確認できる最小限の HTML クライアントを提供（`/admin/index.html`）
+## 主な機能
+- 取引アカウントの作成（初期入金額を指定可能）
+- 米ドルの入金／出金、および買い・売り注文の執行
+- 現金残高と保有銘柄のスナップショット取得
+- 入出金・売買を含むトランザクション履歴の永続化
 
 ## 技術スタック
 - Java 17
 - Spring Boot 3（Web + Validation）
-- Maven（ビルドと依存関係管理）
-- JUnit 5（ユニットテスト）
+- Maven
+- JUnit 5
 
-## はじめに
-
+## クイックスタート
 ### 前提条件
 - Java 17 以上
 - Maven 3.9 以上
 
-### サービスの起動
+### アプリの起動
 ```bash
 mvn spring-boot:run
 ```
-API は `http://localhost:8080` で利用可能です。ブラウザで `http://localhost:8080/index.html` を開くと、最小限の UI を試せます。
+API は `http://localhost:8080` で利用でき、`http://localhost:8080/index.html` から簡易 UI を試せます。
 
 ### テストの実行
 ```bash
 mvn test
 ```
 
-## リモート／クラウド環境でのホスティング
+## 詳細ドキュメント
+- [API リファレンス](docs/api-reference.md)
+- [デプロイガイド](docs/deployment.md)
+- [JUnit 整備ガイドライン](docs/junit-guidelines.md)
 
-ローカル PC の代わりにクラウド上のコンテナ環境でアプリを起動し、スマホなど外部端末からアクセスしたい場合は以下のワークフローが利用できます。
+## 今後の拡張アイデア
+- 取引履歴や約定レポートの詳細化
+- 認証／認可の導入
+- 為替・市場データとのリアルタイム連携
+- フロントエンドの拡張によるダッシュボード機能の強化
 
-### GitHub Codespaces での一時ホスト
-1. GitHub リポジトリで Codespace を作成し、VS Code またはブラウザ版エディタで開きます。
-2. ターミナルで上記と同じ手順で `mvn spring-boot:run` を実行します。
-3. Codespaces の Ports タブで 8080 番ポートを **Public** に変更すると、共有可能な https URL が払い出されます。スマホのブラウザからその URL（例: `https://<hash>-8080.app.github.dev/index.html`）へアクセスすると、PC と同じ UI を操作できます。
-4. 公開した URL は認証付きですが、必要に応じてアクセス権を制限し、不要になったら Codespace を停止または削除します。
-
-### GitHub Actions + コンテナレジストリ + AWS App Runner
-リポジトリにはマルチステージビルドの Dockerfile と、ECR へのプッシュおよび App Runner へのデプロイを自動化する GitHub Actions ワークフローを追加しています。
-
-#### 1. コンテナイメージのビルド概要
-Dockerfile は Maven ベースのビルド段階で `mvn -Pproduction package` を実行して JAR を生成し、実行段階では Temurin JRE で `java -jar /app/app.jar` を起動します。
-
-#### 2. GitHub Actions での AWS 認証を準備する
-1. **IAM ロールを作成**: AWS マネジメントコンソールで GitHub OIDC プロバイダ（`token.actions.githubusercontent.com`）を信頼するロールを新規作成し、`<owner>/<repo>` リポジトリからの AssumeRole を許可する条件を信頼ポリシーに追加します。ECR・App Runner へアクセスできる権限ポリシーをアタッチしてください。
-2. **ロール ARN を GitHub シークレットに登録**: 作成したロールの ARN をコピーし、GitHub リポジトリの Settings → *Secrets and variables* → *Actions* で `AWS_DEPLOY_ROLE_ARN` シークレットを追加します。
-3. **リポジトリ変数を設定**: 同画面の *Variables* タブで `AWS_REGION`（例: `ap-northeast-1`）と `ECR_REPOSITORY`（例: `stock-service`）の 2 つを登録します。
-4. **App Runner の ARN（任意）**: 既存サービスを使う場合はその ARN を `APP_RUNNER_SERVICE_ARN` シークレットに登録します。初回にサービスを新規作成するなら、空のままで構いません。
-
-#### 3. ワークフローを実行する
-1. GitHub Actions の `Deploy to AWS App Runner` ワークフローを `main` ブランチへの push か手動実行で起動します。
-2. `Configure AWS credentials` ステップで STS 認証が成功することを確認します（ここで失敗する場合は上記シークレット／変数設定を見直してください）。
-3. 後続ステップでは ECR リポジトリを作成（未作成の場合）、`docker build`／`docker push`、App Runner サービスの作成または更新、`aws apprunner start-deployment` によるローリングデプロイを順番に行い、最後に `aws apprunner describe-service` をポーリングしてステータスが `RUNNING` へ戻るまで待機します。
-
-#### 4. 公開 URL の取り扱い
-App Runner が提供する https エンドポイントは自動で TLS 終端されるため、スマホなど外部端末から安全にアクセスできます。追加の認証が必要な場合は AWS WAF + Cognito 認証、IAM 認証付きの Web Application Firewall、あるいは Basic 認証リバースプロキシ（ALB + Lambda@Edge など）を組み合わせてください。
-
-#### 5. マージ後に App Runner へ自動デプロイされたかを確認する
-
-`main` ブランチへのマージ（= push）が発生すると上記ワークフローが自動的に実行され、ECR へ新しいイメージをプッシュした後に App Runner サービスを更新します。デプロイ完了を確認するには以下のいずれかの方法を利用してください。
-
-1. **GitHub Actions の実行履歴を確認**: 対象コミットの *Build and Deploy to App Runner* ワークフローが成功している（緑のチェック）ことを確認します。ログ内で `Update App Runner service` や `Wait for App Runner deployment to complete` のステップが完了していれば、最新イメージへの更新が開始されています。
-2. **AWS CLI でサービス状態を確認**: ローカル端末または Codespaces で次のコマンドを実行します。
-   ```bash
-   aws apprunner describe-service \
-     --service-arn "$APP_RUNNER_SERVICE_ARN" \
-     --query 'Service.{Status:Status,ImageIdentifier:SourceConfiguration.ImageRepository.ImageIdentifier}' \
-     --output table
-   ```
-   `Status` が `RUNNING` で、`ImageIdentifier` が GitHub Actions のログに表示される最新タグと一致していれば、最新コミットが反映されています。
-3. **App Runner コンソールで最終確認**: AWS マネジメントコンソールの App Runner サービス画面で最新リビジョンのデプロイ完了を確認します。公開 URL を開き、API や `/index.html` が期待どおり動作するかをテストしてください。
-
-### AWS Elastic Beanstalk や ECS/Fargate での常時稼働
-1. Elastic Beanstalk の Java プラットフォームを選び、`mvn package` で生成した `target/*.jar` をアップロードするだけで自動デプロイできます。環境作成時に公開 URL が付与され、スマホから `https://<環境名>.elasticbeanstalk.com/index.html` にアクセスできます。
-2. あるいは Dockerfile をベースに Amazon ECS + Fargate のタスク定義を作成し、Application Load Balancer 経由で 8080 ポートをインターネットに公開します。Route53 で独自ドメインを割り当てれば、社内／外部のスマホからも同じ URL で利用できます。
-3. パブリッククラウドに公開する際は、VPC のセキュリティグループや WAF で IP 制限や TLS を設定し、認証／認可の実装を追加してから運用してください。
-
-## API の概要
-
-| メソッド | エンドポイント | 説明 |
-| --- | --- | --- |
-| POST | `/api/accounts` | 新しいアカウントを作成 |
-| GET | `/api/accounts/{id}` | アカウントの残高と保有銘柄を取得 |
-| POST | `/api/accounts/{id}/deposit` | アカウントに米ドルを入金 |
-| POST | `/api/accounts/{id}/withdraw` | アカウントから米ドルを出金 |
-| POST | `/api/accounts/{id}/trade` | 買いまたは売りの取引を実行 |
-| GET | `/api/accounts/{id}/transactions` | 入出金／売買トランザクション履歴を取得 |
-
-すべての POST エンドポイントは JSON ペイロードを受け取り、JSON を返します。検証エラーやビジネスルール違反の場合は HTTP 400、アカウントが見つからない場合は HTTP 404 を返します。
-
-## 今後の拡張案
-- 取引履歴や約定レポートの追加
-- 認証／認可の追加
-- リアルタイムの為替・市場データソースとの連携
-- フロントエンドを拡張して、よりリッチなポートフォリオダッシュボードを提供
