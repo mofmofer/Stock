@@ -40,7 +40,7 @@ public class AuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        if (!authenticated && requiresApiAuthentication(path)) {
+        if (!authenticated && !adminAuthenticated && requiresApiAuthentication(path)) {
             respondUnauthorized(response);
             return;
         }
