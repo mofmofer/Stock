@@ -63,6 +63,21 @@ Dockerfile は Maven ベースのビルド段階で `mvn -Pproduction package` �
 #### 4. 公開 URL の取り扱い
 App Runner が提供する https エンドポイントは自動で TLS 終端されるため、スマホなど外部端末から安全にアクセスできます。追加の認証が必要な場合は AWS WAF + Cognito 認証、IAM 認証付きの Web Application Firewall、あるいは Basic 認証リバースプロキシ（ALB + Lambda@Edge など）を組み合わせてください。
 
+#### 5. マージ後に App Runner へ自動デプロイされたかを確認する
+
+`main` ブランチへのマージ（= push）が発生すると上記ワークフローが自動的に実行され、ECR へ新しいイメージをプッシュした後に App Runner サービスを更新します。デプロイ完了を確認するには以下のいずれかの方法を利用してください。
+
+1. **GitHub Actions の実行履歴を確認**: 対象コミットの *Build and Deploy to App Runner* ワークフローが成功している（緑のチェック）ことを確認します。ログ内で `Update App Runner service` や `Wait for App Runner deployment to complete` のステップが完了していれば、最新イメージへの更新が開始されています。
+2. **AWS CLI でサービス状態を確認**: ローカル端末または Codespaces で次のコマンドを実行します。
+   ```bash
+   aws apprunner describe-service \
+     --service-arn "$APP_RUNNER_SERVICE_ARN" \
+     --query 'Service.{Status:Status,ImageIdentifier:SourceConfiguration.ImageRepository.ImageIdentifier}' \
+     --output table
+   ```
+   `Status` が `RUNNING` で、`ImageIdentifier` が GitHub Actions のログに表示される最新タグと一致していれば、最新コミットが反映されています。
+3. **App Runner コンソールで最終確認**: AWS マネジメントコンソールの App Runner サービス画面で最新リビジョンのデプロイ完了を確認します。公開 URL を開き、API や `/index.html` が期待どおり動作するかをテストしてください。
+
 ### AWS Elastic Beanstalk や ECS/Fargate での常時稼働
 1. Elastic Beanstalk の Java プラットフォームを選び、`mvn package` で生成した `target/*.jar` をアップロードするだけで自動デプロイできます。環境作成時に公開 URL が付与され、スマホから `https://<環境名>.elasticbeanstalk.com/index.html` にアクセスできます。
 2. あるいは Dockerfile をベースに Amazon ECS + Fargate のタスク定義を作成し、Application Load Balancer 経由で 8080 ポートをインターネットに公開します。Route53 で独自ドメインを割り当てれば、社内／外部のスマホからも同じ URL で利用できます。
