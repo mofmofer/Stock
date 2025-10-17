@@ -84,10 +84,20 @@
         }
 
         main {
-            width: min(960px, 100%);
+            width: min(1040px, 100%);
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 1.5rem;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 1.75rem;
+            align-items: stretch;
+            grid-auto-flow: dense;
+        }
+
+        main > section {
+            height: 100%;
+        }
+
+        .span-2 {
+            grid-column: span 2;
         }
 
         section {
@@ -263,6 +273,10 @@
                 grid-template-columns: 1fr;
             }
 
+            .span-2 {
+                grid-column: span 1;
+            }
+
             button {
                 width: 100%;
                 justify-content: center;
@@ -339,7 +353,7 @@
         <button onclick="trade()">注文を送信</button>
     </section>
 
-    <section>
+    <section class="span-2">
         <h2>口座スナップショット</h2>
         <label>口座 ID
             <input id="snapshotAccountId" placeholder="口座 ID を貼り付け" autocomplete="off" />
@@ -373,7 +387,7 @@
         <pre id="output">操作をお待ちしています...</pre>
     </section>
 
-    <section>
+    <section class="span-2">
         <h2>取引履歴</h2>
         <label>口座 ID
             <input id="historyAccountId" placeholder="口座 ID を貼り付け" autocomplete="off" />
