@@ -125,6 +125,11 @@
             font-size: 0.9rem;
             text-align: center;
         }
+
+        #message.error {
+            color: #d9480f;
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
@@ -166,9 +171,63 @@
         const form = document.getElementById('loginForm');
         const message = document.getElementById('message');
 
-        form.addEventListener('submit', (event) => {
+        async function redirectIfAuthenticated() {
+            try {
+                const response = await fetch('/api/auth/session');
+                if (response.ok) {
+                    window.location.replace('/index.html');
+                }
+            } catch (error) {
+                console.warn('セッションの確認に失敗しました', error);
+            }
+        }
+
+        redirectIfAuthenticated();
+
+        function setMessage(text, isError = false) {
+            message.textContent = text;
+            message.classList.toggle('error', Boolean(isError));
+        }
+
+        form.addEventListener('submit', async (event) => {
             event.preventDefault();
-            message.textContent = 'このデモでは認証は実装されていません。API を利用するには管理者画面をご利用ください。';
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+
+            if (!email || !password) {
+                setMessage('メールアドレスとパスワードを入力してください。', true);
+                return;
+            }
+
+            setMessage('サインインしています...');
+
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                if (!response.ok) {
+                    let body = {};
+                    try {
+                        body = await response.json();
+                    } catch (error) {
+                        body = {};
+                    }
+                    const errorMessage = body.message || 'メールアドレスまたはパスワードが正しくありません。';
+                    setMessage(errorMessage, true);
+                    return;
+                }
+
+                const result = await response.json().catch(() => ({}));
+                const displayName = result.displayName || 'ユーザー';
+                setMessage(`${displayName} さん、ようこそ！`);
+                window.location.replace('/index.html');
+            } catch (error) {
+                console.error('ログインに失敗しました', error);
+                setMessage('サインインに失敗しました。通信環境をご確認ください。', true);
+            }
         });
     });
 </script>
