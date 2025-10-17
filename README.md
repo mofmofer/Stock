@@ -27,8 +27,13 @@ mvn spring-boot:run
 API は `http://localhost:8080` で利用でき、`http://localhost:8080/login.html` からサインインして簡易 UI を利用できます。
 
 ### デモ用ログイン情報
+#### 通常利用者 (http://localhost:8080/login.html)
 - メールアドレス: `user@example.com`
 - パスワード: `trading-demo`
+
+#### 管理者コンソール (http://localhost:8080/admin/login.html)
+- 管理者 ID: `admin`
+- パスワード: `admin-demo`
 
 ### テストの実行
 ```bash
