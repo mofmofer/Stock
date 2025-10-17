@@ -39,12 +39,14 @@
 
         header {
             width: min(960px, 100%);
-            text-align: center;
             margin-bottom: 2.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
         }
 
         header h1 {
-            margin: 0 0 0.75rem;
+            margin: 0;
             font-size: clamp(1.75rem, 4vw, 2.8rem);
             font-weight: 700;
             letter-spacing: 0.04em;
@@ -55,6 +57,30 @@
             color: var(--muted);
             font-size: 1rem;
             line-height: 1.7;
+        }
+
+        .header-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .session-panel {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .session-panel span {
+            color: var(--muted);
+            font-weight: 600;
+        }
+
+        #logoutButton {
+            padding: 0.55rem 1.1rem;
+            font-size: 0.95rem;
         }
 
         main {
@@ -250,7 +276,13 @@
 </head>
 <body>
 <header>
-    <h1>海外株取引 &amp; 残高管理</h1>
+    <div class="header-top">
+        <h1>海外株取引 &amp; 残高管理</h1>
+        <div class="session-panel" id="sessionPanel" hidden>
+            <span id="welcomeMessage"></span>
+            <button id="logoutButton" class="secondary" type="button">ログアウト</button>
+        </div>
+    </div>
     <p>Spring Boot で構築された REST API を体験できるデモです。<br>口座を作成し、入出金や売買を行ってスナップショットを確認できます。</p>
 </header>
 
@@ -396,6 +428,11 @@
         TRADE: '売買'
     };
 
+    const LOGIN_PAGE = '/login.html';
+    const sessionPanel = document.getElementById('sessionPanel');
+    const welcomeMessage = document.getElementById('welcomeMessage');
+    const logoutButton = document.getElementById('logoutButton');
+
     async function logAccess(pageName) {
         try {
             await fetch('/api/access-logs', {
@@ -408,12 +445,51 @@
         }
     }
 
+    async function initializeSession() {
+        try {
+            const response = await fetch('/api/auth/session');
+            if (!response.ok) {
+                window.location.replace(LOGIN_PAGE);
+                return;
+            }
+            const body = await response.json().catch(() => ({}));
+            applySession(body);
+        } catch (error) {
+            console.error('セッション情報の取得に失敗しました', error);
+            window.location.replace(LOGIN_PAGE);
+        }
+    }
+
+    function applySession(sessionInfo) {
+        const displayName = sessionInfo?.displayName || 'ユーザー';
+        if (welcomeMessage) {
+            welcomeMessage.textContent = `${displayName} さんとしてログイン中`;
+        }
+        if (sessionPanel) {
+            sessionPanel.hidden = false;
+        }
+    }
+
     async function request(url, options) {
         const response = await fetch(url, Object.assign({
             headers: { 'Content-Type': 'application/json' }
         }, options));
+
+        if (response.status === 401) {
+            window.location.replace(LOGIN_PAGE);
+            throw new Error('認証が必要です。');
+        }
+
         const text = await response.text();
-        const body = text ? JSON.parse(text) : {};
+        let body = {};
+        if (text) {
+            try {
+                body = JSON.parse(text);
+            } catch (error) {
+                console.error('レスポンスの解析に失敗しました', error);
+                body = {};
+            }
+        }
         if (!response.ok) {
             throw new Error(body.message || response.statusText);
         }
@@ -695,6 +771,21 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
+        initializeSession();
+
+        if (logoutButton) {
+            logoutButton.addEventListener('click', async () => {
+                logoutButton.disabled = true;
+                try {
+                    await fetch('/api/auth/logout', { method: 'POST' });
+                } catch (error) {
+                    console.warn('ログアウトに失敗しました', error);
+                } finally {
+                    window.location.replace(LOGIN_PAGE);
+                }
+            });
+        }
+
         logAccess('USER_PORTAL');
     });
 </script>
