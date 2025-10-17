@@ -618,7 +618,7 @@
             const row = document.createElement('tr');
             row.innerHTML = `
                 <td>${formatDateTime(log.accessedAt)}</td>
-                <td>${formatAccessLogPage(log.page)}</td>
+                <td>${escapeHtml(formatAccessLogPage(log.page))}</td>
                 <td><code>${escapeHtml(log.path ?? '')}</code></td>
                 <td>${escapeHtml(log.ipAddress ?? '-')}</td>
                 <td class="log-user-agent">${escapeHtml(log.userAgent ?? '-')}</td>
