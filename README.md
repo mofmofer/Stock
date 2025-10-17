@@ -58,7 +58,7 @@ Dockerfile は Maven ベースのビルド段階で `mvn -Pproduction package` �
 #### 3. ワークフローを実行する
 1. GitHub Actions の `Deploy to AWS App Runner` ワークフローを `main` ブランチへの push か手動実行で起動します。
 2. `Configure AWS credentials` ステップで STS 認証が成功することを確認します（ここで失敗する場合は上記シークレット／変数設定を見直してください）。
-3. 後続ステップでは ECR リポジトリを作成（未作成の場合）、`docker build`／`docker push`、App Runner サービスの作成または更新、`aws apprunner start-deployment` によるローリングデプロイを順番に行います。
+3. 後続ステップでは ECR リポジトリを作成（未作成の場合）、`docker build`／`docker push`、App Runner サービスの作成または更新、`aws apprunner start-deployment` によるローリングデプロイを順番に行い、最後に `aws apprunner describe-service` をポーリングしてステータスが `RUNNING` へ戻るまで待機します。
 
 #### 4. 公開 URL の取り扱い
 App Runner が提供する https エンドポイントは自動で TLS 終端されるため、スマホなど外部端末から安全にアクセスできます。追加の認証が必要な場合は AWS WAF + Cognito 認証、IAM 認証付きの Web Application Firewall、あるいは Basic 認証リバースプロキシ（ALB + Lambda@Edge など）を組み合わせてください。
