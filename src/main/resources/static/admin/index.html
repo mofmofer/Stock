@@ -52,7 +52,7 @@
         }
 
         main {
-            max-width: 960px;
+            max-width: 1100px;
             margin: 0 auto;
             background: var(--card-bg);
             border-radius: 18px;
@@ -89,6 +89,32 @@
             box-shadow: 0 12px 22px rgba(36, 54, 163, 0.25);
         }
 
+        .section-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .data-section {
+            background: rgba(255, 255, 255, 0.65);
+            border-radius: 16px;
+            padding: 1.25rem 1.25rem 1.5rem;
+            border: 1px solid rgba(36, 54, 163, 0.1);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+        }
+
+        .data-section h2 {
+            margin: 0 0 0.25rem;
+            font-size: 1.15rem;
+            font-weight: 700;
+        }
+
+        .data-section p {
+            margin: 0 0 1rem;
+            font-size: 0.9rem;
+            color: var(--muted);
+        }
+
         table {
             width: 100%;
             border-collapse: collapse;
@@ -110,23 +136,6 @@
             background: rgba(31, 37, 68, 0.04);
         }
 
-        .holdings {
-            display: flex;
-            flex-direction: column;
-            gap: 0.25rem;
-        }
-
-        .holding-chip {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.4rem 0.65rem;
-            border-radius: 999px;
-            background: rgba(36, 54, 163, 0.1);
-            color: var(--accent);
-            font-size: 0.85rem;
-        }
-
         .empty {
             color: var(--muted);
             font-style: italic;
@@ -137,9 +146,27 @@
             color: var(--muted);
         }
 
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.6rem;
+            font-size: 0.8rem;
+            border-radius: 999px;
+            background: rgba(36, 54, 163, 0.12);
+            color: var(--accent);
+        }
+
+        .numeric {
+            text-align: right;
+        }
+
         @media (max-width: 720px) {
             main {
                 padding: 1.25rem;
+            }
+
+            .section-grid {
+                grid-template-columns: 1fr;
             }
 
             table {
@@ -152,91 +179,338 @@
 <body>
 <header>
     <h1>口座管理ダッシュボード</h1>
-    <p>API 経由で登録された口座と現金残高、保有ポジションをひと目で確認できます。</p>
+    <p>API 経由で登録されたデータを RDB のテーブルのように俯瞰できます。</p>
 </header>
 <main>
     <div class="toolbar">
         <div class="updated-at" id="updatedAt">読み込み中...</div>
         <button id="refreshButton">最新の状態に更新</button>
     </div>
-    <div class="table-wrapper">
-        <table>
-            <thead>
-            <tr>
-                <th>口座 ID</th>
-                <th>名義</th>
-                <th>現金残高 (USD)</th>
-                <th>保有ポジション</th>
-            </tr>
-            </thead>
-            <tbody id="accountTableBody">
-            <tr>
-                <td colspan="4" class="empty">口座情報を取得しています...</td>
-            </tr>
-            </tbody>
-        </table>
+    <div class="section-grid">
+        <section class="data-section" aria-labelledby="accountsHeading">
+            <h2 id="accountsHeading">口座</h2>
+            <p>登録済みの口座を一覧できます。</p>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>口座 ID</th>
+                        <th>名義</th>
+                        <th>開設日</th>
+                    </tr>
+                    </thead>
+                    <tbody id="accountTableBody">
+                    <tr>
+                        <td colspan="3" class="empty">口座情報を取得しています...</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+        <section class="data-section" aria-labelledby="balancesHeading">
+            <h2 id="balancesHeading">残高</h2>
+            <p>各口座の現金残高を確認できます。</p>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>口座 ID</th>
+                        <th>名義</th>
+                        <th class="numeric">現金残高 (USD)</th>
+                    </tr>
+                    </thead>
+                    <tbody id="balanceTableBody">
+                    <tr>
+                        <td colspan="3" class="empty">残高情報を取得しています...</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+        <section class="data-section" aria-labelledby="positionsHeading">
+            <h2 id="positionsHeading">ポジション</h2>
+            <p>各口座の保有銘柄を確認できます。</p>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>口座 ID</th>
+                        <th>銘柄</th>
+                        <th>市場</th>
+                        <th class="numeric">保有数量</th>
+                        <th class="numeric">平均取得単価</th>
+                    </tr>
+                    </thead>
+                    <tbody id="positionTableBody">
+                    <tr>
+                        <td colspan="5" class="empty">ポジション情報を取得しています...</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+        <section class="data-section" aria-labelledby="transactionsHeading">
+            <h2 id="transactionsHeading">取引履歴</h2>
+            <p>各口座の入出金・売買履歴を確認できます。</p>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>取引 ID</th>
+                        <th>口座 ID</th>
+                        <th>種別</th>
+                        <th>売買</th>
+                        <th>銘柄</th>
+                        <th>市場</th>
+                        <th class="numeric">数量</th>
+                        <th class="numeric">単価</th>
+                        <th class="numeric">約定金額</th>
+                        <th class="numeric">残高</th>
+                        <th>日時</th>
+                    </tr>
+                    </thead>
+                    <tbody id="transactionTableBody">
+                    <tr>
+                        <td colspan="11" class="empty">取引履歴を取得しています...</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
     </div>
 </main>
 <script>
-    async function loadAccounts() {
+    async function loadDashboard() {
         setLoading(true);
+        resetTables();
         try {
-            const response = await fetch('/api/accounts');
-            if (!response.ok) {
-                throw new Error(await response.text() || response.statusText);
-            }
-            const accounts = await response.json();
-            renderAccounts(accounts);
+            const accounts = await fetchAccounts();
+            renderAccountTable(accounts);
+            renderBalanceTable(accounts);
+            renderPositionTable(accounts);
+            await renderTransactionTable(accounts);
+            const updatedAt = new Date();
+            document.getElementById('updatedAt').textContent = `最終更新: ${updatedAt.toLocaleString('ja-JP')}`;
         } catch (error) {
-            renderError(error.message);
+            renderGlobalError(error.message);
         } finally {
             setLoading(false);
         }
     }
 
-    function renderAccounts(accounts) {
+    async function fetchAccounts() {
+        const response = await fetch('/api/accounts');
+        if (!response.ok) {
+            throw new Error(await response.text() || response.statusText);
+        }
+        return response.json();
+    }
+
+    function renderAccountTable(accounts) {
         const tbody = document.getElementById('accountTableBody');
         tbody.innerHTML = '';
         if (!accounts.length) {
+            tbody.appendChild(createEmptyRow(3, '登録済みの口座はまだありません。'));
+            return;
+        }
+        for (const account of accounts) {
             const row = document.createElement('tr');
-            row.innerHTML = '<td colspan="4" class="empty">登録済みの口座はまだありません。</td>';
+            row.innerHTML = `
+                <td><code>${account.id}</code></td>
+                <td>${escapeHtml(account.ownerName)}</td>
+                <td>${formatDate(account.createdAt)}</td>
+            `;
             tbody.appendChild(row);
-        } else {
-            for (const account of accounts) {
+        }
+    }
+
+    function renderBalanceTable(accounts) {
+        const tbody = document.getElementById('balanceTableBody');
+        tbody.innerHTML = '';
+        if (!accounts.length) {
+            tbody.appendChild(createEmptyRow(3, '残高情報がありません。'));
+            return;
+        }
+        for (const account of accounts) {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td><code>${account.id}</code></td>
+                <td>${escapeHtml(account.ownerName)}</td>
+                <td class="numeric">${formatCurrency(account.cashBalance)}</td>
+            `;
+            tbody.appendChild(row);
+        }
+    }
+
+    function renderPositionTable(accounts) {
+        const tbody = document.getElementById('positionTableBody');
+        tbody.innerHTML = '';
+        const positionRows = [];
+        for (const account of accounts) {
+            for (const holding of account.holdings || []) {
+                positionRows.push({ accountId: account.id, holding });
+            }
+        }
+        if (!positionRows.length) {
+            tbody.appendChild(createEmptyRow(5, '現在の保有ポジションはありません。'));
+            return;
+        }
+        for (const { accountId, holding } of positionRows) {
+            const row = document.createElement('tr');
+            const quantity = Number(holding.quantity ?? 0).toLocaleString('en-US');
+            const avgCost = Number(holding.averageCost ?? 0).toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 4
+            });
+            row.innerHTML = `
+                <td><code>${accountId}</code></td>
+                <td><span class="badge">${escapeHtml(holding.symbol ?? '')}</span></td>
+                <td>${escapeHtml(holding.exchange ?? '')}</td>
+                <td class="numeric">${quantity}</td>
+                <td class="numeric">$${avgCost}</td>
+            `;
+            tbody.appendChild(row);
+        }
+    }
+
+    async function renderTransactionTable(accounts) {
+        const tbody = document.getElementById('transactionTableBody');
+        tbody.innerHTML = '';
+        if (!accounts.length) {
+            tbody.appendChild(createEmptyRow(11, '取引履歴を表示する口座がありません。'));
+            return;
+        }
+        tbody.appendChild(createEmptyRow(11, '取引履歴を取得しています...'));
+        try {
+            const transactions = await fetchTransactions(accounts);
+            tbody.innerHTML = '';
+            if (!transactions.length) {
+                tbody.appendChild(createEmptyRow(11, '取引履歴はまだありません。'));
+                return;
+            }
+            for (const tx of transactions) {
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td><code>${account.id}</code></td>
-                    <td>${escapeHtml(account.ownerName)}</td>
-                    <td>${formatCurrency(account.cashBalance)}</td>
-                    <td>${renderHoldings(account.holdings)}</td>
+                    <td>${tx.id}</td>
+                    <td><code>${tx.accountId}</code></td>
+                    <td>${formatTransactionType(tx.type)}</td>
+                    <td>${formatTradeSide(tx.tradeSide)}</td>
+                    <td>${escapeHtml(tx.symbol ?? '')}</td>
+                    <td>${escapeHtml(tx.exchange ?? '')}</td>
+                    <td class="numeric">${formatNumber(tx.quantity)}</td>
+                    <td class="numeric">${formatCurrency(tx.pricePerShare)}</td>
+                    <td class="numeric">${formatCurrency(tx.grossAmount ?? tx.cashAmount)}</td>
+                    <td class="numeric">${formatCurrency(tx.cashBalanceAfter)}</td>
+                    <td>${formatDateTime(tx.occurredAt)}</td>
                 `;
                 tbody.appendChild(row);
             }
+        } catch (error) {
+            tbody.innerHTML = '';
+            tbody.appendChild(createEmptyRow(11, `取引履歴の取得に失敗しました: ${escapeHtml(error.message)}`));
         }
-        const updatedAt = new Date();
-        document.getElementById('updatedAt').textContent = `最終更新: ${updatedAt.toLocaleString('ja-JP')}`;
     }
 
-    function renderHoldings(holdings) {
-        if (!holdings || !holdings.length) {
-            return '<span class="empty">保有なし</span>';
+    async function fetchTransactions(accounts) {
+        const requests = accounts.map(async (account) => {
+            const response = await fetch(`/api/accounts/${account.id}/transactions`);
+            if (!response.ok) {
+                throw new Error(await response.text() || response.statusText);
+            }
+            const transactions = await response.json();
+            return transactions.map((tx) => ({ ...tx, accountId: account.id }));
+        });
+        const results = await Promise.all(requests);
+        return results.flat().sort((a, b) => new Date(b.occurredAt) - new Date(a.occurredAt));
+    }
+
+    function createEmptyRow(colspan, message) {
+        const row = document.createElement('tr');
+        row.innerHTML = `<td colspan="${colspan}" class="empty">${escapeHtml(message)}</td>`;
+        return row;
+    }
+
+    function renderGlobalError(message) {
+        document.getElementById('updatedAt').textContent = '最新情報を取得できませんでした';
+        document.getElementById('accountTableBody').innerHTML = '';
+        document.getElementById('accountTableBody').appendChild(createEmptyRow(3, `エラーが発生しました: ${escapeHtml(message)}`));
+        document.getElementById('balanceTableBody').innerHTML = '';
+        document.getElementById('balanceTableBody').appendChild(createEmptyRow(3, `エラーが発生しました: ${escapeHtml(message)}`));
+        document.getElementById('positionTableBody').innerHTML = '';
+        document.getElementById('positionTableBody').appendChild(createEmptyRow(5, `エラーが発生しました: ${escapeHtml(message)}`));
+        document.getElementById('transactionTableBody').innerHTML = '';
+        document.getElementById('transactionTableBody').appendChild(createEmptyRow(11, `エラーが発生しました: ${escapeHtml(message)}`));
+    }
+
+    function resetTables() {
+        const accountBody = document.getElementById('accountTableBody');
+        accountBody.innerHTML = '';
+        accountBody.appendChild(createEmptyRow(3, '口座情報を取得しています...'));
+
+        const balanceBody = document.getElementById('balanceTableBody');
+        balanceBody.innerHTML = '';
+        balanceBody.appendChild(createEmptyRow(3, '残高情報を取得しています...'));
+
+        const positionBody = document.getElementById('positionTableBody');
+        positionBody.innerHTML = '';
+        positionBody.appendChild(createEmptyRow(5, 'ポジション情報を取得しています...'));
+
+        const transactionBody = document.getElementById('transactionTableBody');
+        transactionBody.innerHTML = '';
+        transactionBody.appendChild(createEmptyRow(11, '取引履歴を取得しています...'));
+    }
+
+    function formatDate(value) {
+        if (!value) {
+            return '-';
         }
-        return `<div class="holdings">${holdings.map(h => {
-            const qty = Number(h.quantity).toLocaleString('en-US');
-            const avg = Number(h.averageCost).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
-            return `<span class="holding-chip"><strong>${escapeHtml(h.symbol)}</strong>@${escapeHtml(h.exchange)} / ${qty} 株 @ $${avg}</span>`;
-        }).join('')}</div>`;
+        return new Date(value).toLocaleDateString('ja-JP');
+    }
+
+    function formatDateTime(value) {
+        if (!value) {
+            return '-';
+        }
+        return new Date(value).toLocaleString('ja-JP');
+    }
+
+    function formatNumber(value) {
+        if (value === null || value === undefined) {
+            return '-';
+        }
+        return Number(value).toLocaleString('en-US');
     }
 
     function formatCurrency(value) {
+        if (value === null || value === undefined) {
+            return '-';
+        }
         const number = Number(value ?? 0);
         return number.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
     }
 
-    function renderError(message) {
-        const tbody = document.getElementById('accountTableBody');
-        tbody.innerHTML = `<tr><td colspan="4" class="empty">エラーが発生しました: ${escapeHtml(message)}</td></tr>`;
-        document.getElementById('updatedAt').textContent = '最新情報を取得できませんでした';
+    function formatTransactionType(type) {
+        switch (type) {
+            case 'DEPOSIT':
+                return '入金';
+            case 'WITHDRAWAL':
+                return '出金';
+            case 'TRADE':
+                return '売買';
+            default:
+                return '-';
+        }
+    }
+
+    function formatTradeSide(side) {
+        switch (side) {
+            case 'BUY':
+                return '買い';
+            case 'SELL':
+                return '売り';
+            default:
+                return '-';
+        }
     }
 
     function setLoading(isLoading) {
@@ -250,8 +524,8 @@
         return text.replace(/[&<>"']/g, (m) => map[m]);
     }
 
-    document.getElementById('refreshButton').addEventListener('click', loadAccounts);
-    loadAccounts();
+    document.getElementById('refreshButton').addEventListener('click', loadDashboard);
+    loadDashboard();
 </script>
 </body>
 </html>
