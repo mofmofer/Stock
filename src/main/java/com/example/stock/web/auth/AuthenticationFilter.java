@@ -1,5 +1,6 @@
 package com.example.stock.web.auth;
 
+import com.example.stock.service.AdminAuthenticationService.AuthenticatedAdmin;
 import com.example.stock.service.AuthenticationService.AuthenticatedUser;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -22,6 +23,9 @@ public class AuthenticationFilter extends OncePerRequestFilter {
 
     private static final String LOGIN_PATH = "/login.html";
     private static final String INDEX_PATH = "/index.html";
+    private static final String ADMIN_LOGIN_PATH = "/admin/login.html";
+    private static final String ADMIN_INDEX_PATH = "/admin/index.html";
+    private static final String ADMIN_ROOT_PATH = "/admin/";
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -29,6 +33,7 @@ public class AuthenticationFilter extends OncePerRequestFilter {
         String path = request.getRequestURI();
         HttpSession session = request.getSession(false);
         boolean authenticated = session != null && session.getAttribute(SessionAttributes.AUTHENTICATED_USER) instanceof AuthenticatedUser;
+        boolean adminAuthenticated = session != null && session.getAttribute(SessionAttributes.ADMIN_AUTHENTICATED_USER) instanceof AuthenticatedAdmin;
 
         if (!authenticated && isProtectedPage(path)) {
             response.sendRedirect(LOGIN_PATH);
@@ -55,6 +60,31 @@ public class AuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
+        if (!adminAuthenticated && isAdminProtectedPage(path)) {
+            response.sendRedirect(ADMIN_LOGIN_PATH);
+            return;
+        }
+
+        if (!adminAuthenticated && requiresAdminApiAuthentication(path)) {
+            respondUnauthorized(response);
+            return;
+        }
+
+        if (adminAuthenticated && path.equals(ADMIN_LOGIN_PATH)) {
+            response.sendRedirect(ADMIN_INDEX_PATH);
+            return;
+        }
+
+        if ((path.equals("/admin") || path.equals(ADMIN_ROOT_PATH)) && !adminAuthenticated) {
+            response.sendRedirect(ADMIN_LOGIN_PATH);
+            return;
+        }
+
+        if ((path.equals("/admin") || path.equals(ADMIN_ROOT_PATH)) && adminAuthenticated) {
+            response.sendRedirect(ADMIN_INDEX_PATH);
+            return;
+        }
+
         filterChain.doFilter(request, response);
     }
 
@@ -64,6 +94,14 @@ public class AuthenticationFilter extends OncePerRequestFilter {
 
     private boolean requiresApiAuthentication(String path) {
         return path.startsWith("/api/accounts") || path.equals("/api/auth/logout") || path.equals("/api/auth/session");
+    }
+
+    private boolean isAdminProtectedPage(String path) {
+        return path.equals(ADMIN_INDEX_PATH);
+    }
+
+    private boolean requiresAdminApiAuthentication(String path) {
+        return path.startsWith("/api/admin/") && !path.equals("/api/admin/auth/login");
     }
 
     private void respondUnauthorized(HttpServletResponse response) throws IOException {
