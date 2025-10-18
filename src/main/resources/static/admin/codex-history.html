@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Codex 指示履歴</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            color-scheme: light dark;
+            font-size: 16px;
+            --bg: radial-gradient(circle at top left, #f4f7ff, #eef1ff 40%, #f8f8f8 100%);
+            --card-bg: rgba(255, 255, 255, 0.88);
+            --text: #1f2544;
+            --muted: #626b8a;
+            --border: rgba(36, 54, 163, 0.12);
+            --accent: #2436a3;
+        }
+
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: 'Noto Sans JP', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            padding: 2.5rem 1.25rem 4rem;
+        }
+
+        header {
+            max-width: 960px;
+            margin: 0 auto 1.5rem;
+            text-align: center;
+        }
+
+        header h1 {
+            margin: 0 0 0.65rem;
+            font-size: clamp(1.8rem, 3.6vw, 2.6rem);
+            font-weight: 700;
+        }
+
+        header p {
+            margin: 0;
+            color: var(--muted);
+            line-height: 1.6;
+        }
+
+        main {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: var(--card-bg);
+            border-radius: 18px;
+            padding: 1.75rem;
+            border: 1px solid var(--border);
+            box-shadow: 0 18px 40px rgba(17, 23, 65, 0.08);
+            backdrop-filter: blur(10px);
+        }
+
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-bottom: 1.5rem;
+        }
+
+        .toolbar button,
+        .toolbar a {
+            border: none;
+            border-radius: 999px;
+            padding: 0.6rem 1.35rem;
+            font-size: 0.95rem;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            background: var(--accent);
+            color: #fff;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            transition: transform 0.12s ease, box-shadow 0.12s ease;
+        }
+
+        .toolbar button:hover,
+        .toolbar a:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 12px 22px rgba(36, 54, 163, 0.25);
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+            border-radius: 16px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 540px;
+            background: rgba(255, 255, 255, 0.72);
+        }
+
+        thead {
+            background: rgba(36, 54, 163, 0.08);
+        }
+
+        th, td {
+            padding: 0.85rem 1rem;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        tbody tr:nth-child(odd) {
+            background: rgba(31, 37, 68, 0.04);
+        }
+
+        .numeric {
+            font-variant-numeric: tabular-nums;
+            font-weight: 600;
+        }
+
+        .instruction {
+            font-weight: 600;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: var(--muted);
+        }
+
+        .updated-at {
+            text-align: right;
+            font-size: 0.85rem;
+            color: var(--muted);
+            margin-top: 1rem;
+        }
+
+        .error-banner {
+            background: rgba(201, 74, 74, 0.15);
+            color: #a12828;
+            padding: 0.75rem 1rem;
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+<header>
+    <h1>Codex 指示とPR成果の履歴</h1>
+    <p>Codex に入力された指示と、それに対応する Pull Request の変更概要をいつでも確認できます。</p>
+</header>
+<main>
+    <div class="toolbar">
+        <a href="/admin/index.html">管理ダッシュボードへ戻る</a>
+        <button id="downloadCsv" type="button">CSVとして保存</button>
+    </div>
+    <div id="errorBanner" class="error-banner"></div>
+    <div class="table-wrapper">
+        <table>
+            <thead>
+            <tr>
+                <th style="width: 15%;">PR #</th>
+                <th style="width: 30%;">Codexへの指示</th>
+                <th>PRで反映された内容</th>
+            </tr>
+            </thead>
+            <tbody id="historyBody">
+            <tr class="empty-state">
+                <td colspan="3">読み込み中です…</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+    <p class="updated-at" id="updatedAt"></p>
+</main>
+<script>
+    async function logAccess(pageName) {
+        try {
+            await fetch('/api/access-logs', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ page: pageName, path: window.location.pathname })
+            });
+        } catch (error) {
+            console.warn('アクセスログの送信に失敗しました', error);
+        }
+    }
+
+    async function loadHistory() {
+        const body = document.getElementById('historyBody');
+        const errorBanner = document.getElementById('errorBanner');
+        try {
+            const response = await fetch('data/codex-history.json', { cache: 'no-cache' });
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            const records = await response.json();
+            if (!Array.isArray(records) || records.length === 0) {
+                body.innerHTML = '<tr class="empty-state"><td colspan="3">履歴データが見つかりませんでした。</td></tr>';
+                return [];
+            }
+            const sorted = [...records].sort((a, b) => b.prNumber - a.prNumber);
+            body.innerHTML = sorted
+                .map(record => `
+                    <tr>
+                        <td class="numeric">#${record.prNumber}</td>
+                        <td class="instruction">${escapeHtml(record.instruction)}</td>
+                        <td>${escapeHtml(record.result)}</td>
+                    </tr>`)
+                .join('');
+            const now = new Date();
+            document.getElementById('updatedAt').textContent = `最終更新: ${now.toLocaleString('ja-JP')}`;
+            return sorted;
+        } catch (error) {
+            console.error('履歴の読み込みに失敗しました', error);
+            errorBanner.textContent = '履歴の取得に失敗しました。時間をおいて再度お試しください。';
+            errorBanner.style.display = 'block';
+            body.innerHTML = '<tr class="empty-state"><td colspan="3">履歴を表示できませんでした。</td></tr>';
+            return [];
+        }
+    }
+
+    function escapeHtml(value) {
+        return value
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function downloadCsv(records) {
+        const header = ['PR番号', '指示', '主な変更内容'];
+        const escapeForCsv = (value) => `"${String(value).replace(/"/g, '""')}"`;
+        const rows = records.map(record => [
+            `#${record.prNumber}`,
+            record.instruction,
+            record.result
+        ]);
+        const csvContent = [header, ...rows]
+            .map(columns => columns.map(escapeForCsv).join(','))
+            .join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'codex-history.csv';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        const button = document.getElementById('downloadCsv');
+        button.disabled = true;
+        button.style.opacity = '0.6';
+
+        const records = await loadHistory();
+        if (records.length > 0) {
+            button.disabled = false;
+            button.style.opacity = '1';
+            button.addEventListener('click', () => downloadCsv(records));
+        }
+        await logAccess('ADMIN_CODEX_HISTORY');
+    });
+</script>
+</body>
+</html>
