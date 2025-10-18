@@ -1,0 +1,137 @@
+[
+  {
+    "prNumber": 31,
+    "instruction": "Fix character encoding issues",
+    "result": "表示名用のUTF-8対応YAML設定を採用。"
+  },
+  {
+    "prNumber": 30,
+    "instruction": "Fix layout issues on the screen",
+    "result": "メインダッシュボードのレイアウトを改善。"
+  },
+  {
+    "prNumber": 29,
+    "instruction": "Add login info for demo to README",
+    "result": "READMEにデモ用ログイン情報を追記。"
+  },
+  {
+    "prNumber": 28,
+    "instruction": "Find login credentials for services",
+    "result": "管理者セッションから共有APIへアクセス可能にし、管理者認証フローを実装。"
+  },
+  {
+    "prNumber": 27,
+    "instruction": "codex-197jiz",
+    "result": "ログイン前に既存セッションを無効化し、セッションベースのログイン認証を追加。"
+  },
+  {
+    "prNumber": 26,
+    "instruction": "Create login screens for users and admins",
+    "result": "アクセスログページのラベルをエスケープし、ユーザー・管理者用のログインページとアクセスログ機能を追加。"
+  },
+  {
+    "prNumber": 25,
+    "instruction": "Split README for brevity",
+    "result": "ドキュメント構成をリファクタリング。"
+  },
+  {
+    "prNumber": 24,
+    "instruction": "Add transaction history view in admin panel",
+    "result": "管理者ダッシュボードを刷新し、関連データを閲覧できるビューを追加。"
+  },
+  {
+    "prNumber": 23,
+    "instruction": "Update and fix",
+    "result": "App Runnerの待機ステップを修正。"
+  },
+  {
+    "prNumber": 22,
+    "instruction": "Verify automatic deploy to App Runner",
+    "result": "App Runnerデプロイメントの検証手順を追加。"
+  },
+  {
+    "prNumber": 21,
+    "instruction": "Fix transaction history not displaying",
+    "result": "取引履歴に初期入金を記録。"
+  },
+  {
+    "prNumber": 20,
+    "instruction": "Fix web display issue after PR merge",
+    "result": "API呼び出し前に口座IDの余分な空白をトリム。"
+  },
+  {
+    "prNumber": 19,
+    "instruction": "Fix issue",
+    "result": "ワークフローの実行ごとに固有のECRイメージタグを使用。"
+  },
+  {
+    "prNumber": 18,
+    "instruction": "codex-0towji",
+    "result": "取引履歴の永続化を追加。"
+  },
+  {
+    "prNumber": 17,
+    "instruction": "Persist account and balance data",
+    "result": "口座データ永続化の統合テストを追加。"
+  },
+  {
+    "prNumber": 16,
+    "instruction": "Fix crash issue here",
+    "result": "変更できないlatestタグのプッシュを停止。"
+  },
+  {
+    "prNumber": 15,
+    "instruction": "Fix issue with uprunner not starting",
+    "result": "冗長なApp Runner開始デプロイ手順を削除し、デプロイ完了待機を追加。"
+  },
+  {
+    "prNumber": 14,
+    "instruction": "Resolve issues",
+    "result": "AWSデプロイメントワークフローの設定手順を明確化。"
+  },
+  {
+    "prNumber": 13,
+    "instruction": "Find solution to the issue",
+    "result": "ワークフローのデフォルトAWSリージョンを東京に設定。"
+  },
+  {
+    "prNumber": 12,
+    "instruction": "Set up GitHub Actions for AWS App Runner",
+    "result": "重複するApp Runner開始デプロイ呼び出しを削除し、コンテナビルドとApp Runnerデプロイワークフローを追加。"
+  },
+  {
+    "prNumber": 10,
+    "instruction": "Find mobile startup options",
+    "result": "クラウドホスティングの選択肢を文書化。"
+  },
+  {
+    "prNumber": 9,
+    "instruction": "Translate README to Japanese",
+    "result": "READMEを日本語化。"
+  },
+  {
+    "prNumber": 8,
+    "instruction": "Fix compilation errors in AccountServiceTest",
+    "result": "モックリポジトリを用いてAccountServiceのテストを修正。"
+  },
+  {
+    "prNumber": 7,
+    "instruction": "Add current balance and holdings display",
+    "result": "ダッシュボードに残高と保有資産の表示を追加。"
+  },
+  {
+    "prNumber": 3,
+    "instruction": "Manage account information in DB",
+    "result": "SQLiteで口座情報を永続化し、管理者ダッシュボードを追加。"
+  },
+  {
+    "prNumber": 2,
+    "instruction": "Add Japanese localization to frontend",
+    "result": "UIを刷新し、フロントエンドを日本語化。"
+  },
+  {
+    "prNumber": 1,
+    "instruction": "Initial setup for foreign stock trading service",
+    "result": "サービスAPI全体に日本語Javadocを追加。"
+  }
+]
