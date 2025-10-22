@@ -14,10 +14,12 @@
             --primary: #2436a3;
             --primary-hover: #1b2980;
             --accent: #ff7b54;
+            --danger: #d64545;
             --text: #1f2544;
             --muted: #5a6385;
             --border: rgba(36, 54, 163, 0.1);
             --shadow: 0 18px 40px rgba(17, 23, 65, 0.08);
+            --donut-track: rgba(36, 54, 163, 0.12);
             font-size: 16px;
         }
 
@@ -264,6 +266,161 @@
             margin-top: -0.35rem;
         }
 
+        .cashflow-section .helper-text {
+            margin-top: 0.1rem;
+        }
+
+        .cashflow-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 1.75rem;
+            align-items: center;
+        }
+
+        .cashflow-donut {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .donut-chart {
+            --ratio: 0deg;
+            --expense-color: var(--accent);
+            --income-color: rgba(36, 54, 163, 0.18);
+            width: 180px;
+            aspect-ratio: 1 / 1;
+            border-radius: 50%;
+            background: conic-gradient(var(--expense-color) var(--ratio), var(--income-color) var(--ratio));
+            position: relative;
+            display: grid;
+            place-items: center;
+            transition: background 0.3s ease;
+        }
+
+        .donut-chart::after {
+            content: '';
+            position: absolute;
+            width: 60%;
+            height: 60%;
+            background: var(--card-bg);
+            border-radius: 50%;
+            box-shadow: inset 0 0 0 1px var(--border);
+        }
+
+        .donut-chart.over {
+            --expense-color: var(--danger);
+        }
+
+        .donut-center {
+            position: relative;
+            text-align: center;
+            font-weight: 700;
+            font-size: 1.5rem;
+            color: var(--text);
+        }
+
+        .donut-center small {
+            display: block;
+            margin-top: 0.25rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--muted);
+        }
+
+        .cashflow-legend {
+            list-style: none;
+            display: flex;
+            gap: 1rem;
+            padding: 0;
+            margin: 0;
+            font-size: 0.85rem;
+            color: var(--muted);
+            font-weight: 600;
+        }
+
+        .legend-swatch {
+            display: inline-flex;
+            width: 12px;
+            height: 12px;
+            border-radius: 4px;
+            margin-right: 0.4rem;
+        }
+
+        .legend-swatch.income {
+            background: var(--primary);
+        }
+
+        .legend-swatch.expense {
+            background: var(--accent);
+        }
+
+        .cashflow-details {
+            display: flex;
+            flex-direction: column;
+            gap: 1.1rem;
+        }
+
+        .progress-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+        }
+
+        .progress-label {
+            font-size: 0.9rem;
+            color: var(--muted);
+            font-weight: 600;
+        }
+
+        .progress-track {
+            width: 100%;
+            height: 12px;
+            border-radius: 999px;
+            background: var(--donut-track);
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 0;
+            background: var(--accent);
+            border-radius: inherit;
+            transition: width 0.4s ease;
+        }
+
+        .progress-fill.is-over {
+            background: var(--danger);
+        }
+
+        .cashflow-summary {
+            margin: 0;
+            display: grid;
+            gap: 0.65rem;
+        }
+
+        .cashflow-summary div {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 0.75rem;
+        }
+
+        .cashflow-summary dt {
+            font-size: 0.85rem;
+            color: var(--muted);
+            font-weight: 600;
+        }
+
+        .cashflow-summary dd {
+            margin: 0;
+            font-weight: 600;
+        }
+
+        .cashflow-section .empty-state {
+            margin-top: 1rem;
+        }
+
         @media (max-width: 720px) {
             body {
                 padding: 2.5rem 1rem 3rem;
@@ -284,6 +441,14 @@
 
             section {
                 padding: 1.5rem;
+            }
+
+            .cashflow-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .donut-chart {
+                width: 150px;
             }
         }
     </style>
@@ -385,6 +550,48 @@
             </div>
         </div>
         <pre id="output">操作をお待ちしています...</pre>
+    </section>
+
+    <section class="span-2 cashflow-section" id="cashflowSection">
+        <h2>収支インサイト</h2>
+        <p class="helper-text">取引履歴をもとに収入と支出のバランスを可視化します。</p>
+        <div class="cashflow-grid">
+            <div class="cashflow-donut">
+                <div class="donut-chart" id="spendingDonut" aria-hidden="true">
+                    <div class="donut-center">
+                        <span id="spendingRatioValue">--</span>
+                        <small>支出 / 収入</small>
+                    </div>
+                </div>
+                <ul class="cashflow-legend" aria-hidden="true">
+                    <li><span class="legend-swatch income"></span>収入</li>
+                    <li><span class="legend-swatch expense"></span>支出</li>
+                </ul>
+            </div>
+            <div class="cashflow-details">
+                <div class="progress-group">
+                    <span class="progress-label">支出の割合</span>
+                    <div class="progress-track" id="spendingProgressTrack" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-valuetext="支出の割合は未計算です。">
+                        <div class="progress-fill" id="spendingProgress"></div>
+                    </div>
+                </div>
+                <dl class="cashflow-summary">
+                    <div>
+                        <dt>収入合計</dt>
+                        <dd id="incomeTotal">--</dd>
+                    </div>
+                    <div>
+                        <dt>支出合計</dt>
+                        <dd id="expenseTotal">--</dd>
+                    </div>
+                    <div>
+                        <dt>収支差額</dt>
+                        <dd id="netTotal">--</dd>
+                    </div>
+                </dl>
+            </div>
+        </div>
+        <p class="empty-state" id="cashflowEmpty" hidden>収支を算出するには取引履歴を取得してください。</p>
     </section>
 
     <section class="span-2">
@@ -562,6 +769,20 @@
         return currencyFormatter.format(numericValue);
     }
 
+    function formatPercentage(value) {
+        if (typeof value !== 'number' || Number.isNaN(value)) {
+            return '--';
+        }
+        const absolute = Math.abs(value);
+        if (absolute >= 100 || value === 0) {
+            return `${Math.round(value)}%`;
+        }
+        if (absolute >= 10) {
+            return `${value.toFixed(0)}%`;
+        }
+        return `${value.toFixed(1)}%`;
+    }
+
     function formatQuantity(value) {
         const numericValue = toNumber(value);
         if (Number.isNaN(numericValue)) {
@@ -708,6 +929,7 @@
                 setOutput(transactions);
             }
         } catch (err) {
+            updateCashflowInsights([]);
             if (updateOutput) {
                 setOutput(`エラー: ${err.message}`);
             } else {
@@ -717,6 +939,8 @@
     }
 
     function renderTransactions(transactions) {
+        const dataset = Array.isArray(transactions) ? transactions : [];
+        updateCashflowInsights(dataset);
         const tableBody = document.querySelector('#transactionsTable tbody');
         const emptyEl = document.getElementById('transactionsEmpty');
         if (!tableBody || !emptyEl) {
@@ -725,14 +949,14 @@
 
         tableBody.innerHTML = '';
 
-        if (!Array.isArray(transactions) || transactions.length === 0) {
+        if (dataset.length === 0) {
             emptyEl.style.display = 'block';
             return;
         }
 
         emptyEl.style.display = 'none';
 
-        transactions.forEach((tx) => {
+        dataset.forEach((tx) => {
             const row = document.createElement('tr');
             const cells = [
                 formatDateTime(tx.occurredAt),
@@ -751,6 +975,94 @@
             });
             tableBody.appendChild(row);
         });
+    }
+
+    function updateCashflowInsights(transactions) {
+        const donutEl = document.getElementById('spendingDonut');
+        const ratioValueEl = document.getElementById('spendingRatioValue');
+        const incomeEl = document.getElementById('incomeTotal');
+        const expenseEl = document.getElementById('expenseTotal');
+        const netEl = document.getElementById('netTotal');
+        const progressEl = document.getElementById('spendingProgress');
+        const progressTrack = document.getElementById('spendingProgressTrack');
+        const emptyMessage = document.getElementById('cashflowEmpty');
+        if (!donutEl || !ratioValueEl || !incomeEl || !expenseEl || !netEl || !progressEl) {
+            return;
+        }
+
+        const items = Array.isArray(transactions) ? transactions : [];
+        const totals = items.reduce((acc, tx) => {
+            const amount = toNumber(tx.cashAmount);
+            if (Number.isNaN(amount) || amount === 0) {
+                return acc;
+            }
+            if (amount > 0) {
+                acc.income += amount;
+            } else if (amount < 0) {
+                acc.expense += Math.abs(amount);
+            }
+            return acc;
+        }, { income: 0, expense: 0 });
+
+        const hasData = items.length > 0 && (totals.income > 0 || totals.expense > 0);
+
+        if (!hasData) {
+            ratioValueEl.textContent = '--';
+            incomeEl.textContent = '--';
+            expenseEl.textContent = '--';
+            netEl.textContent = '--';
+            donutEl.style.setProperty('--ratio', '0deg');
+            donutEl.classList.remove('over');
+            progressEl.style.width = '0%';
+            progressEl.classList.remove('is-over');
+            if (progressTrack) {
+                progressTrack.setAttribute('aria-valuenow', '0');
+                progressTrack.setAttribute('aria-valuetext', '支出の割合は未計算です。');
+            }
+            if (emptyMessage) {
+                emptyMessage.hidden = false;
+            }
+            return;
+        }
+
+        if (emptyMessage) {
+            emptyMessage.hidden = true;
+        }
+
+        incomeEl.textContent = formatCurrency(totals.income);
+        expenseEl.textContent = formatCurrency(-totals.expense);
+        netEl.textContent = formatCurrency(totals.income - totals.expense);
+
+        let rawRatio = 0;
+        if (totals.income > 0) {
+            rawRatio = (totals.expense / totals.income) * 100;
+        } else if (totals.expense > 0) {
+            rawRatio = Number.POSITIVE_INFINITY;
+        }
+
+        const isOverflow = !Number.isFinite(rawRatio) || rawRatio > 100;
+        const safeRatio = Number.isFinite(rawRatio) ? Math.max(rawRatio, 0) : 100;
+        const clampedRatio = Math.min(safeRatio, 100);
+        const ratioDegrees = (clampedRatio / 100) * 360;
+
+        donutEl.style.setProperty('--ratio', `${ratioDegrees}deg`);
+        donutEl.classList.toggle('over', isOverflow);
+        progressEl.style.width = `${clampedRatio}%`;
+        progressEl.classList.toggle('is-over', isOverflow);
+
+        if (progressTrack) {
+            progressTrack.setAttribute('aria-valuenow', clampedRatio.toFixed(0));
+            const ariaText = Number.isFinite(rawRatio)
+                ? `支出は収入の${formatPercentage(rawRatio)}です。`
+                : '収入がないため支出割合は算出できません。';
+            progressTrack.setAttribute('aria-valuetext', ariaText);
+        }
+
+        if (Number.isFinite(rawRatio)) {
+            ratioValueEl.textContent = formatPercentage(rawRatio);
+        } else {
+            ratioValueEl.textContent = '収入なし';
+        }
     }
 
     function formatTradeSide(side) {
@@ -783,6 +1095,8 @@
         }
         return dateTimeFormatter.format(date);
     }
+
+    updateCashflowInsights([]);
 
     document.addEventListener('DOMContentLoaded', () => {
         initializeSession();
